@@ -36,11 +36,13 @@ def _read_upload_limited(file: UploadFile, max_size_bytes: int) -> bytes:
         remaining = max_size_bytes - total
         if remaining < 0:
             raise RubricTooLargeError("Rubric file too large")
-        chunk = file.file.read(min(_UPLOAD_CHUNK_SIZE, remaining + 1))
+        if remaining == 0:
+            if file.file.read(1):
+                raise RubricTooLargeError("Rubric file too large")
+            break
+        chunk = file.file.read(min(_UPLOAD_CHUNK_SIZE, remaining))
         if not chunk:
             break
-        if len(chunk) > remaining:
-            raise RubricTooLargeError("Rubric file too large")
         total += len(chunk)
         chunks.append(chunk)
     return b"".join(chunks)
@@ -84,7 +86,8 @@ def process_endpoint(
     rubric_payload = None
     if rubric is not None:
         try:
-            rubric_payload = json.loads(_read_upload_limited(rubric, settings.max_upload_size_bytes).decode("utf-8"))
+            rubric_bytes = _read_upload_limited(rubric, settings.max_upload_size_bytes)
+            rubric_payload = json.loads(rubric_bytes.decode("utf-8"))
         except RubricTooLargeError as exc:
             raise HTTPException(status_code=400, detail="Rubric file too large") from exc
         except Exception as exc:
