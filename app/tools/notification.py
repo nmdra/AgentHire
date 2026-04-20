@@ -49,6 +49,7 @@ def send_email_tool(
                 "text": body,
             }
         )
+        # Defensive guard: treat unexpected SDK return types as failed delivery.
         if not isinstance(result, dict):
             return {"email_id": email_id, "status": "failed", "timestamp": now}
         resolved_id = str(result.get("id", email_id))
