@@ -33,10 +33,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
 
     app = FastAPI(title="AgentHire Multi-Agent Application Analysis System", lifespan=lifespan)
-    app.dependency_overrides[get_settings] = lambda: cfg
 
     if settings is not None:
         initialize_storage()
+        app.dependency_overrides[get_settings] = lambda: cfg
 
     app.include_router(router)
     return app

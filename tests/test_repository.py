@@ -42,6 +42,10 @@ def test_notification_missing_recipient_is_failed(tmp_path):
         {"resend_api_key": "re_test", "resend_from_email": "noreply@example.com"},
     )
     assert result["notification_status"] == "failed"
+    assert result["errors"] == ["Missing recipient email"]
     stored = repo.get_application("id-2")
     assert stored is not None
     assert stored["notification_status"] == "failed"
+    assert stored["errors"] == ["Missing recipient email"]
+    logs = repo.list_audit_logs("id-2")
+    assert logs[-1]["tool_name"] == "validate_recipient"
