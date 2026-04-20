@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Literal
 
 from app.core.constants import MAX_SUMMARY_LENGTH
 from app.db.repository import ApplicationRepository
@@ -170,8 +170,16 @@ def notification_agent_node(state: ApplicationState, repo: ApplicationRepository
     try:
         extracted = state.get("extracted_json") or {}
         recipient = str(extracted.get("email") or "")
-        decision = str(state.get("decision") or "FAIL")
-        composed = compose_email_tool(decision, str(extracted.get("name") or "Applicant"))
+        decision_state = state.get("decision")
+        decision: Literal["PASS", "FAIL", "REVIEW"]
+        if decision_state == "PASS":
+            decision = "PASS"
+        elif decision_state == "REVIEW":
+            decision = "REVIEW"
+        else:
+            decision = "FAIL"
+        recipient_name = extracted.get("name")
+        composed = compose_email_tool(decision, str(recipient_name) if recipient_name else None)
         sent = send_email_tool(
             to_address=recipient,
             subject=composed["subject"],

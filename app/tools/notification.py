@@ -5,9 +5,12 @@ import smtplib
 import uuid
 from datetime import datetime, timezone
 from email.message import EmailMessage
+from typing import Literal
 
 
-def compose_email_tool(decision: str, recipient_name: str | None) -> dict[str, str]:
+def compose_email_tool(
+    decision: Literal["PASS", "FAIL", "REVIEW"], recipient_name: str | None
+) -> dict[str, str]:
     """Compose outcome-specific email content."""
     salutation = recipient_name or "Applicant"
     if decision == "PASS":

@@ -22,3 +22,7 @@ def test_low_score_fail(score: float) -> None:
 
 def test_review_boundary_at_sixty() -> None:
     assert apply_decision_rules_tool(60.0)["status"] == "REVIEW"
+
+
+def test_pass_boundary_at_hundred() -> None:
+    assert apply_decision_rules_tool(100.0)["status"] == "PASS"

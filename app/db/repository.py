@@ -65,6 +65,7 @@ class ApplicationRepository:
             encoded["extracted_json"] = json.dumps(encoded["extracted_json"])
         if "errors" in encoded:
             encoded["errors"] = json.dumps(encoded["errors"])
+        # Safe because keys are validated against ALLOWED_APPLICATION_COLUMNS above.
         columns = ", ".join(f"{key} = ?" for key in encoded)
         values = list(encoded.values())
         values.append(application_id)
