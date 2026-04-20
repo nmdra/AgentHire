@@ -18,7 +18,10 @@ def parse_pdf_tool(file_path: str) -> str:
     if path.suffix.lower() != ".pdf":
         raise ValueError(f"Expected .pdf, got {path.suffix}")
     doc = fitz.open(file_path)
-    return "\n".join(page.get_text() for page in doc)
+    try:
+        return "\n".join(page.get_text() for page in doc)
+    finally:
+        doc.close()
 
 
 def read_text_tool(file_path: str) -> str:
