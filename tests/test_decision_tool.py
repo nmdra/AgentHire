@@ -1,5 +1,7 @@
+import pytest
 from hypothesis import given, strategies as st
 
+from app.models.schemas import Rubric
 from app.tools.decision import apply_decision_rules_tool
 
 
@@ -26,3 +28,12 @@ def test_review_boundary_at_sixty() -> None:
 
 def test_pass_boundary_at_hundred() -> None:
     assert apply_decision_rules_tool(100.0)["status"] == "PASS"
+
+
+def test_rubric_rejects_inverted_thresholds() -> None:
+    with pytest.raises(ValueError, match="pass_threshold"):
+        Rubric(
+            criteria=[{"name": "skills", "weight": 1.0, "description": "skills match"}],
+            pass_threshold=50.0,
+            review_threshold=60.0,
+        )

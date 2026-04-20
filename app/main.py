@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -17,12 +19,24 @@ logging.basicConfig(
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    app = FastAPI(title="AgentHire Multi-Agent Application Analysis System")
-
     cfg = settings or get_settings()
-    root = Path.cwd()
-    cfg.ensure_dirs(root)
-    init_db(cfg.db_path)
+
+    def initialize_storage() -> None:
+        root = Path.cwd()
+        cfg.ensure_dirs(root)
+        init_db(cfg.db_path)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        if settings is None:
+            initialize_storage()
+        yield
+
+    app = FastAPI(title="AgentHire Multi-Agent Application Analysis System", lifespan=lifespan)
+    app.dependency_overrides[get_settings] = lambda: cfg
+
+    if settings is not None:
+        initialize_storage()
 
     app.include_router(router)
     return app

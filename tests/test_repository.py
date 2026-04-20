@@ -1,3 +1,4 @@
+from app.agents.nodes import notification_agent_node
 from app.db.database import init_db
 from app.db.repository import ApplicationRepository
 
@@ -20,3 +21,27 @@ def test_repository_roundtrip(tmp_path):
     logs = repo.list_audit_logs("id-1")
     assert len(logs) == 1
     assert logs[0]["agent_name"] == "agent"
+
+
+def test_notification_missing_recipient_is_failed(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    init_db(db_path)
+    repo = ApplicationRepository(db_path)
+    repo.create_application("id-2", str(tmp_path / "file.txt"))
+    state = {
+        "application_id": "id-2",
+        "raw_file_path": str(tmp_path / "file.txt"),
+        "extracted_json": {"name": "No Email"},
+        "decision": "PASS",
+        "errors": [],
+        "audit_log": [],
+    }
+    result = notification_agent_node(
+        state,
+        repo,
+        {"resend_api_key": "re_test", "resend_from_email": "noreply@example.com"},
+    )
+    assert result["notification_status"] == "failed"
+    stored = repo.get_application("id-2")
+    assert stored is not None
+    assert stored["notification_status"] == "failed"

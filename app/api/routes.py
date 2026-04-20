@@ -33,7 +33,7 @@ def upload_application(
 ) -> ProcessResponse:
     try:
         validate_upload(file, settings.max_upload_size_bytes)
-        path = store_upload(file, settings.uploads_dir)
+        path = store_upload(file, settings.uploads_dir, settings.max_upload_size_bytes)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -52,7 +52,7 @@ def process_endpoint(
 ) -> ProcessResponse:
     try:
         validate_upload(file, settings.max_upload_size_bytes)
-        path = store_upload(file, settings.uploads_dir)
+        path = store_upload(file, settings.uploads_dir, settings.max_upload_size_bytes)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

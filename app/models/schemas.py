@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 class ExtractedApplication(BaseModel):
@@ -36,6 +36,12 @@ class Rubric(BaseModel):
         if not 0.99 <= total <= 1.01:
             raise ValueError("Rubric criteria weights must sum to 1.0")
         return value
+
+    @model_validator(mode="after")
+    def validate_thresholds(self) -> "Rubric":
+        if self.pass_threshold < self.review_threshold:
+            raise ValueError("pass_threshold must be greater than or equal to review_threshold")
+        return self
 
 
 class ScoreBreakdown(BaseModel):

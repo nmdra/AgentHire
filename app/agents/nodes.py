@@ -63,7 +63,7 @@ def extraction_agent_node(state: ApplicationState, repo: ApplicationRepository) 
         return {"extracted_json": extracted, "audit_log": state["audit_log"] + [log]}
     except Exception as exc:
         repo.append_error(state["application_id"], str(exc))
-        return {"errors": state["errors"] + [str(exc)]}
+        raise
 
 
 def evaluation_agent_node(state: ApplicationState, repo: ApplicationRepository) -> dict[str, Any]:
@@ -93,7 +93,7 @@ def evaluation_agent_node(state: ApplicationState, repo: ApplicationRepository) 
         }
     except Exception as exc:
         repo.append_error(state["application_id"], str(exc))
-        return {"errors": state["errors"] + [str(exc)]}
+        raise
 
 
 def decision_agent_node(state: ApplicationState, repo: ApplicationRepository) -> dict[str, Any]:
@@ -128,7 +128,7 @@ def decision_agent_node(state: ApplicationState, repo: ApplicationRepository) ->
         }
     except Exception as exc:
         repo.append_error(state["application_id"], str(exc))
-        return {"errors": state["errors"] + [str(exc)]}
+        raise
 
 
 def report_agent_node(state: ApplicationState, repo: ApplicationRepository, reports_dir: str) -> dict[str, Any]:
@@ -162,7 +162,7 @@ def report_agent_node(state: ApplicationState, repo: ApplicationRepository, repo
         }
     except Exception as exc:
         repo.append_error(state["application_id"], str(exc))
-        return {"errors": state["errors"] + [str(exc)]}
+        raise
 
 
 def notification_agent_node(
@@ -182,6 +182,21 @@ def notification_agent_node(
             decision = "FAIL"
         recipient_name = extracted.get("name")
         composed = compose_email_tool(decision, str(recipient_name) if recipient_name else None)
+        if not recipient:
+            status = "failed"
+            error = "Missing recipient email"
+            repo.append_error(state["application_id"], error)
+            repo.update_fields(state["application_id"], notification_status=status)
+            log = _log(
+                repo,
+                state["application_id"],
+                "notification_agent",
+                "validate_recipient",
+                "missing email",
+                status,
+                start,
+            )
+            return {"notification_status": status, "errors": state["errors"] + [error], "audit_log": state["audit_log"] + [log]}
         sent = send_email_tool(
             to_address=recipient,
             subject=composed["subject"],
@@ -202,7 +217,7 @@ def notification_agent_node(
         return {"notification_status": sent["status"], "audit_log": state["audit_log"] + [log]}
     except Exception as exc:
         repo.append_error(state["application_id"], str(exc))
-        return {"errors": state["errors"] + [str(exc)]}
+        raise
 
 
 def human_review_node(state: ApplicationState, repo: ApplicationRepository) -> dict[str, Any]:
