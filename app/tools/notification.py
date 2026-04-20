@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 import smtplib
 import uuid
 from datetime import datetime, timezone
@@ -43,8 +44,9 @@ def send_email_tool(
     msg["To"] = to_address
     msg.set_content(body)
     try:
+        context = ssl.create_default_context()
         with smtplib.SMTP(smtp_host, smtp_port, timeout=8) as server:
-            server.starttls()
+            server.starttls(context=context)
             server.login(smtp_username, smtp_password)
             server.send_message(msg)
         return {"email_id": email_id, "status": "sent", "timestamp": now}

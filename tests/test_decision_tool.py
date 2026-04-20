@@ -15,6 +15,10 @@ def test_high_score_pass(score: float) -> None:
     assert apply_decision_rules_tool(score)["status"] == "PASS"
 
 
-@given(score=st.floats(min_value=0, max_value=59.99))
+@given(score=st.floats(min_value=0, max_value=60, exclude_max=True))
 def test_low_score_fail(score: float) -> None:
     assert apply_decision_rules_tool(score)["status"] == "FAIL"
+
+
+def test_review_boundary_at_sixty() -> None:
+    assert apply_decision_rules_tool(60.0)["status"] == "REVIEW"

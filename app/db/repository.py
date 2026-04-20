@@ -4,7 +4,26 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from app.core.constants import MAX_SUMMARY_LENGTH
 from app.db.database import connect
+
+ALLOWED_APPLICATION_COLUMNS = {
+    "name",
+    "email",
+    "phone",
+    "raw_file_path",
+    "extracted_json",
+    "evaluation_score",
+    "evaluation_reasoning",
+    "decision",
+    "confidence",
+    "report_applicant",
+    "report_internal",
+    "notification_status",
+    "errors",
+}
+# NOTE: keep this whitelist strict; update_fields builds column assignments dynamically and
+# relies on this allow-list to prevent SQL injection through column names.
 
 
 class ApplicationRepository:
@@ -39,6 +58,9 @@ class ApplicationRepository:
         if not fields:
             return
         encoded = dict(fields)
+        invalid_keys = set(encoded).difference(ALLOWED_APPLICATION_COLUMNS)
+        if invalid_keys:
+            raise ValueError(f"Unsupported update fields: {sorted(invalid_keys)}")
         if "extracted_json" in encoded and encoded["extracted_json"] is not None:
             encoded["extracted_json"] = json.dumps(encoded["extracted_json"])
         if "errors" in encoded:
@@ -79,8 +101,8 @@ class ApplicationRepository:
                     application_id,
                     agent_name,
                     tool_name,
-                    input_summary[:500],
-                    output_summary[:500],
+                    input_summary[:MAX_SUMMARY_LENGTH],
+                    output_summary[:MAX_SUMMARY_LENGTH],
                     latency_ms,
                     now,
                 ),

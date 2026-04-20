@@ -15,7 +15,7 @@ FastAPI + LangGraph + SQLite implementation of a local-first multi-agent applica
 ## Setup
 
 ```bash
-cd /home/runner/work/AgentHire/AgentHire
+cd /path/to/AgentHire
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]

@@ -12,7 +12,7 @@ from app.db.database import init_db
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s application_id=%(application_id)s %(message)s",
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
 

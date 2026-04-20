@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from app.core.constants import MAX_SUMMARY_LENGTH
 from app.db.repository import ApplicationRepository
 from app.models.state import ApplicationState
 from app.tools.decision import apply_decision_rules_tool
@@ -33,8 +34,8 @@ def _log(
     return {
         "agent_name": agent_name,
         "tool_name": tool_name,
-        "input_summary": input_summary[:500],
-        "output_summary": output_summary[:500],
+        "input_summary": input_summary[:MAX_SUMMARY_LENGTH],
+        "output_summary": output_summary[:MAX_SUMMARY_LENGTH],
         "latency_ms": latency_ms,
     }
 
