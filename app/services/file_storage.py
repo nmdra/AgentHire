@@ -15,7 +15,18 @@ def validate_upload(file: UploadFile, max_size_bytes: int) -> None:
     if suffix not in ALLOWED_EXTENSIONS:
         raise ValueError("Unsupported file type")
 
+    try:
+        current_position = file.file.tell()
+        try:
+            file.file.seek(0, 2)
+            total_size = file.file.tell()
+        finally:
+            file.file.seek(current_position)
+    except (AttributeError, OSError):
+        return
 
+    if total_size > max_size_bytes:
+        raise ValueError("File too large")
 def store_upload(file: UploadFile, uploads_dir: str, max_size_bytes: int) -> str:
     suffix = Path(file.filename or "").suffix.lower()
     unique_name = f"{uuid.uuid4()}{suffix}"
