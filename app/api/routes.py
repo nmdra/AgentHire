@@ -33,12 +33,15 @@ def _read_upload_limited(file: UploadFile, max_size_bytes: int) -> bytes:
     total = 0
     chunks: list[bytes] = []
     while True:
-        chunk = file.file.read(_UPLOAD_CHUNK_SIZE)
+        remaining = max_size_bytes - total
+        if remaining < 0:
+            raise RubricTooLargeError("Rubric file too large")
+        chunk = file.file.read(min(_UPLOAD_CHUNK_SIZE, remaining + 1))
         if not chunk:
             break
-        total += len(chunk)
-        if total > max_size_bytes:
+        if len(chunk) > remaining:
             raise RubricTooLargeError("Rubric file too large")
+        total += len(chunk)
         chunks.append(chunk)
     return b"".join(chunks)
 

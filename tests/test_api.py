@@ -48,13 +48,19 @@ def test_process_endpoint(tmp_path):
 
 
 def test_process_rejects_oversized_rubric(tmp_path):
-    client = _client(tmp_path, max_upload_size_bytes=128)
+    max_upload_size_bytes = 128
+    client = _client(tmp_path, max_upload_size_bytes=max_upload_size_bytes)
     file_content = b"Name: Jane Doe\nEmail: jane@example.com\nSkills: Python, FastAPI\n"
+    oversized_rubric_bytes = max_upload_size_bytes + 100
     response = client.post(
         "/applications/process",
         files={
             "file": ("application.txt", io.BytesIO(file_content), "text/plain"),
-            "rubric": ("rubric.json", io.BytesIO(b'{"a":"' + (b"x" * 200) + b'"}'), "application/json"),
+            "rubric": (
+                "rubric.json",
+                io.BytesIO(b'{"a":"' + (b"x" * oversized_rubric_bytes) + b'"}'),
+                "application/json",
+            ),
         },
     )
     assert response.status_code == 400
