@@ -49,7 +49,9 @@ def send_email_tool(
                 "text": body,
             }
         )
-        resolved_id = str(result.get("id", email_id)) if isinstance(result, dict) else email_id
+        if not isinstance(result, dict):
+            return {"email_id": email_id, "status": "failed", "timestamp": now}
+        resolved_id = str(result.get("id", email_id))
         return {"email_id": resolved_id, "status": "sent", "timestamp": now}
     except Exception:
         return {"email_id": email_id, "status": "failed", "timestamp": now}

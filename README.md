@@ -33,7 +33,7 @@ Set environment values before running:
 
 ```bash
 export RESEND_API_KEY="re_xxx"
-export RESEND_FROM_EMAIL="onboarding@resend.dev"
+export RESEND_FROM_EMAIL="you@your-verified-domain.com"
 ```
 
 ## Ollama Models
