@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import ssl
-import smtplib
 import uuid
 from datetime import datetime, timezone
-from email.message import EmailMessage
 from typing import Literal
+
+import resend
 
 
 def compose_email_tool(
@@ -29,29 +28,28 @@ def send_email_tool(
     to_address: str,
     subject: str,
     body: str,
-    smtp_host: str = "smtp.mailgun.org",
-    smtp_port: int = 587,
-    smtp_username: str = "",
-    smtp_password: str = "",
-    smtp_from: str = "noreply@example.com",
+    resend_api_key: str = "",
+    resend_from_email: str = "noreply@example.com",
 ) -> dict[str, str]:
-    """Send transactional email via SMTP or queue when credentials absent."""
+    """Send transactional email via Resend or queue when not configured."""
     email_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
-    if not smtp_username or not smtp_password:
+    if not resend_api_key:
         return {"email_id": email_id, "status": "queued", "timestamp": now}
+    if not to_address:
+        return {"email_id": email_id, "status": "failed", "timestamp": now}
 
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = smtp_from
-    msg["To"] = to_address
-    msg.set_content(body)
     try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=8) as server:
-            server.starttls(context=context)
-            server.login(smtp_username, smtp_password)
-            server.send_message(msg)
-        return {"email_id": email_id, "status": "sent", "timestamp": now}
+        resend.api_key = resend_api_key
+        result = resend.Emails.send(
+            {
+                "from": resend_from_email,
+                "to": [to_address],
+                "subject": subject,
+                "text": body,
+            }
+        )
+        resolved_id = str(result.get("id", email_id)) if isinstance(result, dict) else email_id
+        return {"email_id": resolved_id, "status": "sent", "timestamp": now}
     except Exception:
         return {"email_id": email_id, "status": "failed", "timestamp": now}

@@ -27,6 +27,15 @@ pip install -e .[dev]
 uvicorn app.main:app --reload
 ```
 
+## Email (Resend)
+
+Set environment values before running:
+
+```bash
+export RESEND_API_KEY="re_xxx"
+export RESEND_FROM_EMAIL="onboarding@resend.dev"
+```
+
 ## Ollama Models
 
 ```bash
@@ -61,5 +70,5 @@ Decision routing:
 ## Troubleshooting
 
 - If `/health` shows `ollama=down`, start Ollama and verify `OLLAMA_BASE_URL`.
-- If email is not configured, notifications are marked as `queued`.
+- If Resend is not configured, notifications are marked as `queued`.
 - If SQLite lock errors appear, avoid concurrent writes to the same DB file.

@@ -18,11 +18,8 @@ class Settings(BaseSettings):
     decision_model: str = "phi4-mini:3.8b-q4_K_M"
     report_model: str = "gemma3:1b-it-q4_K_M"
     notification_model: str = "smollm:360m"
-    smtp_host: str = "smtp.mailgun.org"
-    smtp_port: int = 587
-    smtp_username: str = ""
-    smtp_password: str = ""
-    smtp_from: str = "noreply@example.com"
+    resend_api_key: str = ""
+    resend_from_email: str = "noreply@example.com"
     langchain_tracing_v2: bool = Field(default=False, alias="LANGCHAIN_TRACING_V2")
     langchain_api_key: str = Field(default="", alias="LANGCHAIN_API_KEY")
     langchain_project: str = Field(default="ctse-assignment2", alias="LANGCHAIN_PROJECT")

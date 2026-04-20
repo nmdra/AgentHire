@@ -67,12 +67,9 @@ def process_endpoint(
     repo = _get_repo(settings)
     repo.create_application(application_id, path)
 
-    smtp_config = {
-        "smtp_host": settings.smtp_host,
-        "smtp_port": settings.smtp_port,
-        "smtp_username": settings.smtp_username,
-        "smtp_password": settings.smtp_password,
-        "smtp_from": settings.smtp_from,
+    email_config = {
+        "resend_api_key": settings.resend_api_key,
+        "resend_from_email": settings.resend_from_email,
     }
     background_tasks.add_task(
         process_application,
@@ -81,7 +78,7 @@ def process_endpoint(
         path,
         rubric_payload,
         settings.reports_dir,
-        smtp_config,
+        email_config,
         settings.retry_attempts,
     )
     return ProcessResponse(application_id=application_id, status="processing")

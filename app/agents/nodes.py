@@ -165,7 +165,9 @@ def report_agent_node(state: ApplicationState, repo: ApplicationRepository, repo
         return {"errors": state["errors"] + [str(exc)]}
 
 
-def notification_agent_node(state: ApplicationState, repo: ApplicationRepository, smtp_config: dict[str, Any]) -> dict[str, Any]:
+def notification_agent_node(
+    state: ApplicationState, repo: ApplicationRepository, email_config: dict[str, Any]
+) -> dict[str, Any]:
     start = time.perf_counter()
     try:
         extracted = state.get("extracted_json") or {}
@@ -184,11 +186,8 @@ def notification_agent_node(state: ApplicationState, repo: ApplicationRepository
             to_address=recipient,
             subject=composed["subject"],
             body=composed["body"],
-            smtp_host=str(smtp_config.get("smtp_host", "smtp.mailgun.org")),
-            smtp_port=int(smtp_config.get("smtp_port", 587)),
-            smtp_username=str(smtp_config.get("smtp_username", "")),
-            smtp_password=str(smtp_config.get("smtp_password", "")),
-            smtp_from=str(smtp_config.get("smtp_from", "noreply@example.com")),
+            resend_api_key=str(email_config.get("resend_api_key", "")),
+            resend_from_email=str(email_config.get("resend_from_email", "noreply@example.com")),
         )
         repo.update_fields(state["application_id"], notification_status=sent["status"])
         log = _log(

@@ -10,6 +10,7 @@ dependencies = [
   "pydantic>=2.8.0",
   "pydantic-settings>=2.3.0",
   "email-validator>=2.2.0",
+  "resend>=2.29.0",
   "langgraph>=0.2.35",
   "langchain-core>=0.3.0",
   "python-multipart>=0.0.9",

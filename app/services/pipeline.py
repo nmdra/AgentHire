@@ -13,10 +13,10 @@ def process_application(
     raw_file_path: str,
     rubric: dict[str, Any] | None,
     reports_dir: str,
-    smtp_config: dict[str, Any],
+    email_config: dict[str, Any],
     retries: int,
 ) -> None:
-    flow = build_workflow(repo=repo, reports_dir=reports_dir, smtp_config=smtp_config, retries=retries)
+    flow = build_workflow(repo=repo, reports_dir=reports_dir, email_config=email_config, retries=retries)
     initial_state: ApplicationState = {
         "application_id": application_id,
         "raw_file_path": raw_file_path,

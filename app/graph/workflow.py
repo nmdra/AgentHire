@@ -33,7 +33,7 @@ def _with_retries(func: Callable[[ApplicationState], dict[str, Any]], retries: i
 def build_workflow(
     repo: ApplicationRepository,
     reports_dir: str,
-    smtp_config: dict[str, Any],
+    email_config: dict[str, Any],
     retries: int = 2,
 ) -> Any:
     graph = StateGraph(ApplicationState)
@@ -47,7 +47,7 @@ def build_workflow(
     )
     graph.add_node(  # type: ignore[call-overload]
         "notify",
-        _with_retries(lambda s: notification_agent_node(s, repo, smtp_config), retries),
+        _with_retries(lambda s: notification_agent_node(s, repo, email_config), retries),
     )
     graph.add_node("human_review", _with_retries(lambda s: human_review_node(s, repo), retries))  # type: ignore[call-overload]
 
