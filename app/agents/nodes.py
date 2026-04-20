@@ -180,8 +180,6 @@ def notification_agent_node(
             decision = "REVIEW"
         else:
             decision = "FAIL"
-        recipient_name = extracted.get("name")
-        composed = compose_email_tool(decision, str(recipient_name) if recipient_name else None)
         if not recipient:
             status = "failed"
             error = "Missing recipient email"
@@ -197,6 +195,8 @@ def notification_agent_node(
                 start,
             )
             return {"notification_status": status, "errors": state["errors"] + [error], "audit_log": state["audit_log"] + [log]}
+        recipient_name = extracted.get("name")
+        composed = compose_email_tool(decision, str(recipient_name) if recipient_name else None)
         sent = send_email_tool(
             to_address=recipient,
             subject=composed["subject"],

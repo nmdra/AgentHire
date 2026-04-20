@@ -19,6 +19,7 @@ logging.basicConfig(
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    has_explicit_settings = settings is not None
     cfg = settings or get_settings()
 
     def initialize_storage() -> None:
@@ -28,13 +29,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        if settings is None:
+        if not has_explicit_settings:
             initialize_storage()
         yield
 
     app = FastAPI(title="AgentHire Multi-Agent Application Analysis System", lifespan=lifespan)
 
-    if settings is not None:
+    if has_explicit_settings:
         initialize_storage()
         app.dependency_overrides[get_settings] = lambda: cfg
 
