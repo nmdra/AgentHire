@@ -1,24 +1,42 @@
 from __future__ import annotations
 
 import json
-import logging
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 
 from app.core.config import Settings, get_settings
 from app.db.repository import ApplicationRepository
-from app.models.schemas import AuditLogResponse, HealthResponse, ProcessResponse
+from app.models.schemas import (
+    ApplicationStatusResponse,
+    AuditLogResponse,
+    HealthResponse,
+    ProcessResponse,
+)
 from app.services.file_storage import store_upload, validate_upload
 from app.services.health import check_db, check_ollama
 from app.services.pipeline import process_application
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
+_RUBRIC_CHUNK_SIZE = 1024 * 1024
 
 
 def _get_repo(settings: Settings) -> ApplicationRepository:
     return ApplicationRepository(settings.db_path)
+
+
+def _read_upload_limited(file: UploadFile, max_size_bytes: int) -> bytes:
+    total = 0
+    chunks: list[bytes] = []
+    while True:
+        chunk = file.file.read(_RUBRIC_CHUNK_SIZE)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_size_bytes:
+            raise ValueError("Rubric file too large")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -59,7 +77,9 @@ def process_endpoint(
     rubric_payload = None
     if rubric is not None:
         try:
-            rubric_payload = json.loads(rubric.file.read().decode("utf-8"))
+            rubric_payload = json.loads(_read_upload_limited(rubric, settings.max_upload_size_bytes).decode("utf-8"))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:
             raise HTTPException(status_code=400, detail="Invalid rubric JSON") from exc
 
@@ -84,15 +104,15 @@ def process_endpoint(
     return ProcessResponse(application_id=application_id, status="processing")
 
 
-@router.get("/applications/{application_id}/status")
+@router.get("/applications/{application_id}/status", response_model=ApplicationStatusResponse)
 def status_endpoint(
     application_id: str, settings: Settings = Depends(get_settings)
-) -> dict[str, object]:
+) -> ApplicationStatusResponse:
     repo = _get_repo(settings)
     app = repo.get_application(application_id)
     if app is None:
         raise HTTPException(status_code=404, detail="Application not found")
-    return app
+    return ApplicationStatusResponse.model_validate(app)
 
 
 @router.get("/applications/{application_id}/logs", response_model=list[AuditLogResponse])

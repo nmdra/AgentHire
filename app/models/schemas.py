@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -75,14 +75,10 @@ class HealthResponse(BaseModel):
 
 class ApplicationStatusResponse(BaseModel):
     id: str
-    raw_file_path: str
-    extracted_json: dict[str, Any] | None
     evaluation_score: float | None
     evaluation_reasoning: str | None
     decision: str | None
     confidence: float | None
-    report_applicant: str | None
-    report_internal: str | None
     notification_status: str | None
     errors: list[str]
     created_at: str
