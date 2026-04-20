@@ -1,9 +1,0 @@
-Defaulting to user installation because normal site-packages is not writeable
-Collecting resend
-  Downloading resend-2.29.0-py2.py3-none-any.whl.metadata (3.5 kB)
-Requirement already satisfied: requests>=2.31.0 in /usr/lib/python3/dist-packages (from resend) (2.31.0)
-Requirement already satisfied: typing-extensions>=4.4.0 in /usr/lib/python3/dist-packages (from resend) (4.10.0)
-Downloading resend-2.29.0-py2.py3-none-any.whl (68 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.3/68.3 kB 9.4 MB/s eta 0:00:00
-Installing collected packages: resend
-Successfully installed resend-2.29.0
