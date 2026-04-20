@@ -164,7 +164,7 @@ Rubric shape:
 Rules:
 
 - `criteria` must not be empty
-- weights must sum to ~`1.0`
+- weights must sum to between `0.99` and `1.01`
 - `pass_threshold >= review_threshold`
 
 ### 4) Check processing status
