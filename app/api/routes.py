@@ -18,7 +18,11 @@ from app.services.health import check_db, check_ollama
 from app.services.pipeline import process_application
 
 router = APIRouter()
-_RUBRIC_CHUNK_SIZE = 1024 * 1024
+_UPLOAD_CHUNK_SIZE = 1024 * 1024
+
+
+class RubricTooLargeError(ValueError):
+    pass
 
 
 def _get_repo(settings: Settings) -> ApplicationRepository:
@@ -29,12 +33,12 @@ def _read_upload_limited(file: UploadFile, max_size_bytes: int) -> bytes:
     total = 0
     chunks: list[bytes] = []
     while True:
-        chunk = file.file.read(_RUBRIC_CHUNK_SIZE)
+        chunk = file.file.read(_UPLOAD_CHUNK_SIZE)
         if not chunk:
             break
         total += len(chunk)
         if total > max_size_bytes:
-            raise ValueError("Rubric file too large")
+            raise RubricTooLargeError("Rubric file too large")
         chunks.append(chunk)
     return b"".join(chunks)
 
@@ -78,8 +82,8 @@ def process_endpoint(
     if rubric is not None:
         try:
             rubric_payload = json.loads(_read_upload_limited(rubric, settings.max_upload_size_bytes).decode("utf-8"))
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except RubricTooLargeError as exc:
+            raise HTTPException(status_code=400, detail="Rubric file too large") from exc
         except Exception as exc:
             raise HTTPException(status_code=400, detail="Invalid rubric JSON") from exc
 
