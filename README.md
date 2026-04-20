@@ -1,4 +1,4 @@
-# AgentHire — Multi-Agent Application Analysis System
+# AgentHire -- Multi-Agent Application Analysis System
 
 AgentHire is a local-first recruitment pipeline built with **FastAPI**, **LangGraph**, and **SQLite**.
 It accepts an applicant file, runs a multi-agent evaluation workflow in the background, stores state and
