@@ -1,4 +1,4 @@
-from app.agents.nodes import notification_agent_node
+from app.agents.notification_agent import notification_agent_node
 from app.db.database import init_db
 from app.db.repository import ApplicationRepository
 

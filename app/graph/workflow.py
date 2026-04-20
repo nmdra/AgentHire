@@ -5,7 +5,7 @@ from typing import Any
 
 from langgraph.graph import END, StateGraph
 
-from app.agents.nodes import (
+from app.agents import (
     decision_agent_node,
     evaluation_agent_node,
     extraction_agent_node,
