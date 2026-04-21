@@ -34,6 +34,7 @@ def _strip_markdown_json_fences(text: str) -> str:
 
     Example:
         _strip_markdown_json_fences("```json\\n{\\"name\\": \\"A\\"}\\n```")
+        '{"name": "A"}'
     """
     stripped = text.strip()
     if not stripped.startswith("```"):

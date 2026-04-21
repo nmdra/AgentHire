@@ -146,7 +146,6 @@ def test_extraction_accepts_fenced_json(
     }
 
     def mock_generate_fenced(**kwargs: object) -> str:
-        _ = kwargs
         call_count["count"] += 1
         return f"```json\n{json.dumps(valid_payload)}\n```"
 
@@ -200,7 +199,6 @@ def test_extraction_retries_when_extra_fields_present(
     ])
 
     def mock_generate_with_retry(**kwargs: object) -> str:
-        _ = kwargs
         call_count["count"] += 1
         return next(responses)
 
