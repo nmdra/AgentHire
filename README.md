@@ -11,7 +11,6 @@ audit logs, and generates internal/applicant reports.
   - extraction
   - evaluation
   - decision
-  - (optional) human review
   - report generation
   - notification
 - Persist results in SQLite (`applications`, `audit_log`)
@@ -27,7 +26,43 @@ Decision routing:
 
 - `PASS` -> `report` -> `notify`
 - `FAIL` -> `report` -> `notify`
-- `REVIEW` -> `human_review` -> `report` -> `notify`
+- `REVIEW` -> `report` -> `notify`
+
+---
+
+## Agent Persona & Constraints
+
+All persona specs are defined in code in `app/agents/personas.py` and are injected into every agent prompt via structured sections (`SYSTEM`, `TASK`, `CONTEXT`, `OUTPUT`).
+
+### Extraction Agent
+- **Persona:** precise document parser for applicant facts
+- **Owned state fields:** `extracted_json`
+- **Tool usage:** `parse_pdf_tool`, `parse_text_tool`, `parse_json_tool`, `generate_json_response`
+- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, JSON-only schema output
+
+### Evaluation Agent
+- **Persona:** rubric-style evaluator of extracted data
+- **Owned state fields:** `evaluation_score`, `evaluation_reasoning`
+- **Tool usage:** `generate_json_response`
+- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, score must be `0..100`
+
+### Decision Agent
+- **Persona:** deterministic threshold decision explainer
+- **Owned state fields:** `decision`, `confidence`, `decision_reason`
+- **Tool usage:** deterministic threshold classifier + `generate_json_response` for reason metadata
+- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, confidence must be `0.0..1.0`
+
+### Report Agent
+- **Persona:** report writer for applicant/internal stakeholders
+- **Owned state fields:** `report_applicant`, `report_internal`
+- **Tool usage:** `generate_json_response`, `write_reports_tool`
+- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, deterministic markdown output shape
+
+### Notification Agent
+- **Persona:** safe notification composer and dispatcher
+- **Owned state fields:** `notification_status`
+- **Tool usage:** `generate_json_response`, `send_notification_tool`
+- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, deterministic plain-text subject/body output
 
 ---
 

@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.database import update_application
+from app.agents.personas import EXTRACTION_PERSONA, build_structured_prompt
 from app.observability import traced
 from app.state import ApplicationState
 from app.tools.ollama import generate_json_response
@@ -32,31 +33,32 @@ def _read_input(file_path: str) -> str:
     raise ValueError("Unsupported file type. Use PDF, TXT, MD, or JSON")
 
 
-def _build_prompt(raw_text: str, correction_error: str | None = None) -> str:
-    instruction = (
-        "You are a precise document parsing agent.\n\n"
-        "Your ONLY job is to read the provided document text and return a single valid JSON object.\n\n"
-        "Rules:\n"
-        "- Return ONLY the JSON object. No explanation, markdown, or conversational text.\n"
-        "- If a field is not present in the document, set it to null.\n"
-        "- For list fields, use an empty list [] if nothing is found.\n"
-        "- Never invent or guess data. Only extract what is explicitly stated.\n"
-        '- Capture significant details not covered by primary fields in "other_details".\n\n'
-        "Output schema (use exactly these keys):\n"
-        '{\n'
-        '  "name":       string or null,\n'
-        '  "email":      string or null,\n'
-        '  "phone":      string or null,\n'
-        '  "website":    string or null,\n'
-        '  "skills":     [string, ...],\n'
-        '  "experience": [{"title": string, "company": string, "duration": string}, ...],\n'
-        '  "education":  [{"degree": string, "institution": string, "year": string}, ...],\n'
-        '  "other_details": [string, ...]\n'
-        '}\n'
+def _build_extraction_prompt(raw_text: str, correction_error: str | None = None) -> str:
+    task = (
+        "Extract applicant details from the provided text into the exact structured JSON schema."
     )
     if correction_error:
-        instruction = f"{instruction}\nPrevious response failed validation: {correction_error}"
-    return f"{instruction}\n\nQuestion: {raw_text[:MAX_INPUT_CHARS]}\nAnswer (JSON only):"
+        task = f"{task}\nPrevious response failed validation: {correction_error}"
+    context = f"document_text:\n{raw_text[:MAX_INPUT_CHARS]}"
+    output = (
+        "Return JSON only with exactly these keys:\n"
+        '{\n'
+        '  "name": string or null,\n'
+        '  "email": string or null,\n'
+        '  "phone": string or null,\n'
+        '  "website": string or null,\n'
+        '  "skills": [string, ...],\n'
+        '  "experience": [{"title": string, "company": string, "duration": string}, ...],\n'
+        '  "education": [{"degree": string, "institution": string, "year": string}, ...],\n'
+        '  "other_details": [string, ...]\n'
+        '}'
+    )
+    return build_structured_prompt(
+        persona=EXTRACTION_PERSONA,
+        task=task,
+        context=context,
+        output=output,
+    )
 
 
 def _extract_with_retry(
@@ -68,7 +70,7 @@ def _extract_with_retry(
         response_text = generate_json_response(
             base_url=base_url,
             model=model,
-            prompt=_build_prompt(raw_text, correction_error=error),
+            prompt=_build_extraction_prompt(raw_text, correction_error=error),
             temperature=0.0,
             top_p=0.1,
             stop=["```"],

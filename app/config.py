@@ -16,7 +16,13 @@ class Settings:
     max_upload_size_bytes: int = int(getenv("MAX_UPLOAD_SIZE_BYTES", "10485760"))
     ollama_base_url: str = getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     extraction_model: str = getenv("EXTRACTION_MODEL", "smollm:360m")
+    evaluation_model: str = getenv("EVALUATION_MODEL", "gemma3:1b-it-q4_K_M")
+    decision_model: str = getenv("DECISION_MODEL", "phi4-mini:3.8b-q4_K_M")
+    report_model: str = getenv("REPORT_MODEL", "gemma3:1b-it-q4_K_M")
+    notification_model: str = getenv("NOTIFICATION_MODEL", "smollm:360m")
     ollama_timeout_seconds: float = float(getenv("OLLAMA_TIMEOUT_SECONDS", "30"))
+    resend_api_key: str = getenv("RESEND_API_KEY", "")
+    resend_from_email: str = getenv("RESEND_FROM_EMAIL", "noreply@example.com")
 
 
 def get_settings() -> Settings:
