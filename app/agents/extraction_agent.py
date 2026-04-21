@@ -63,11 +63,9 @@ def _extract_with_retry(
         except (json.JSONDecodeError, ValidationError) as exc:
             error = str(exc)
             if attempt + 1 >= max_attempts:
-                raise ValueError(
-                    f"Extraction output failed validation after retry: {error}"
-                ) from exc
+                break
 
-    raise ValueError("Extraction output failed validation after retry")
+    raise ValueError(f"Extraction output failed validation after retry: {error}")
 
 
 @traced("extraction_agent")

@@ -36,9 +36,9 @@ def generate_json_response(
 
     Example:
         generate_json_response(
-            base_url=\"http://localhost:11434\",
-            model=\"smollm:360m\",
-            prompt=\"Return JSON\",
+            base_url="http://localhost:11434",
+            model="smollm:360m",
+            prompt="Return JSON",
             timeout_seconds=30.0,
         )
     """
