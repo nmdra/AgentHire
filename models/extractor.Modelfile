@@ -1,27 +1,61 @@
-FROM smollm:360m
+FROM hf.co/nimendraai/SmolLM2-AgentHire-Extractor:Q4_K_M
 
-# Set temperature to 0.0 to ensure deterministic, precise JSON extraction without creative hallucination
+# Sampling: deterministic extraction
 PARAMETER temperature 0
+PARAMETER top_k 1
+PARAMETER top_p 0.1
+PARAMETER repeat_penalty 1.0
+PARAMETER seed 42
 
-# The strict JSON-enforcing system prompt from Phase 1
-SYSTEM """You are a precise document parsing agent.
+# Context & output limits
+# SmolLM2 supports up to 8192 tokens; resumes are rarely longer than ~2k tokens
+PARAMETER num_ctx 4096
+# Cap output to prevent runaway generation; a full résumé JSON fits in ~512 tokens
+PARAMETER num_predict 512
 
-Your ONLY job is to read the provided document text and return a single valid JSON object.
+# Stop tokens
+# Stop AFTER the closing brace so the JSON object is always complete
+PARAMETER stop "```"
+
+# Structured output
+FORMAT json
+
+# System prompt
+SYSTEM """You are a precise document parsing agent. Your ONLY job is to read the provided document text and return a single valid JSON object.
 
 Rules:
-- Return ONLY the JSON object. No explanation, markdown, or text outside the JSON.
+- Return ONLY the JSON object. No explanation, no markdown, no preamble.
 - If a field is not present in the document, set it to null.
-- For list fields (skills, experience, education), use an empty list [] if nothing is found.
+- For list fields, use an empty list [] if nothing is found.
 - Never invent or guess data. Only extract what is explicitly stated.
-- Skills must be individual strings, not comma-joined.
+- Normalise phone numbers to E.164 format where possible (e.g. +94771234567).
+- Capture certifications, awards, languages, security clearances, and publications in "other_details".
 
 Output schema (use exactly these keys):
 {
-  "name":       string or null,
-  "email":      string or null,
-  "phone":      string or null,
-  "website":    string or null,
-  "skills":     [string, ...],
-  "experience": [{"title": string, "company": string, "duration": string}, ...],
-  "education":  [{"degree": string, "institution": string, "year": string}, ...]
+  "name":         string | null,
+  "email":        string | null,
+  "phone":        string | null,
+  "website":      string | null,
+  "skills":       [string, ...],
+  "experience":   [{"title": string, "company": string, "duration": string}, ...],
+  "education":    [{"degree": string, "institution": string, "year": string}, ...],
+  "other_details": [string, ...]
 }"""
+
+# Prompt template
+TEMPLATE """{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}<|im_start|>user
+Extract all fields from the following document:
+
+{{ .Prompt }}<|im_end|>
+<|im_start|>assistant
+"""
+
+# Few-shot grounding (prevents hallucination on sparse résumés)
+MESSAGE user "John Doe\nSoftware Engineer"
+MESSAGE assistant "{\"name\":\"John Doe\",\"email\":null,\"phone\":null,\"website\":null,\"skills\":[],\"experience\":[{\"title\":\"Software Engineer\",\"company\":null,\"duration\":null}],\"education\":[],\"other_details\":[]}"
+
+# License
+LICENSE """Apache License, Version 2.0 — http://www.apache.org/licenses/LICENSE-2.0"""
