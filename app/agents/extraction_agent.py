@@ -22,6 +22,23 @@ from app.tools.validate_extraction import CandidateExtraction
 MAX_INPUT_CHARS = 32000
 
 
+def _strip_markdown_json_fences(text: str) -> str:
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+
+    lines = stripped.splitlines()
+    if not lines:
+        return stripped
+    if lines[-1].strip() != "```":
+        return stripped
+
+    body = lines[1:-1]
+    if lines[0].strip().lower() in {"```json", "```"}:
+        return "\n".join(body).strip()
+    return stripped
+
+
 def _read_input(file_path: str) -> str:
     extension = Path(file_path).suffix.lower()
     if extension == ".pdf":
@@ -48,8 +65,8 @@ def _build_extraction_prompt(raw_text: str, correction_error: str | None = None)
         '  "phone": string or null,\n'
         '  "website": string or null,\n'
         '  "skills": [string, ...],\n'
-        '  "experience": [{"title": string, "company": string, "duration": string}, ...],\n'
-        '  "education": [{"degree": string, "institution": string, "year": string}, ...],\n'
+        '  "experience": [{"title": string or null, "company": string or null, "duration": string or null}, ...],\n'
+        '  "education": [{"degree": string or null, "institution": string or null, "year": string or null}, ...],\n'
         '  "other_details": [string, ...]\n'
         '}'
     )
@@ -73,11 +90,10 @@ def _extract_with_retry(
             prompt=_build_extraction_prompt(raw_text, correction_error=error),
             temperature=0.0,
             top_p=0.1,
-            stop=["```"],
             timeout_seconds=timeout_seconds,
         )
         try:
-            payload = json.loads(response_text)
+            payload = json.loads(_strip_markdown_json_fences(response_text))
             validated = CandidateExtraction.model_validate(payload)
             return validated.model_dump()
         except (json.JSONDecodeError, ValidationError) as exc:
