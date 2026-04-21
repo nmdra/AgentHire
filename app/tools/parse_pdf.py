@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import fitz
 from langchain.tools import tool
+import pymupdf4llm
 
 
 @tool
@@ -29,8 +29,7 @@ def parse_pdf_tool(path: str) -> str:
     if not file_path.exists():
         raise FileNotFoundError(f"File does not exist: {path}")
 
-    with fitz.open(path) as document:
-        text = "\n".join(page.get_text("text") for page in document)
+    text = str(pymupdf4llm.to_markdown(path))
 
     cleaned = text.strip()
     if not cleaned:
