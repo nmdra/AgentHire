@@ -30,42 +30,6 @@ Decision routing:
 
 ---
 
-## Agent Persona & Constraints
-
-All persona specs are defined in code in `app/agents/personas.py` and are injected into every agent prompt via structured sections (`SYSTEM`, `TASK`, `CONTEXT`, `OUTPUT`).
-
-### Extraction Agent
-- **Persona:** precise document parser for applicant facts
-- **Owned state fields:** `extracted_json`
-- **Tool usage:** `parse_pdf_tool`, `parse_text_tool`, `parse_json_tool`, `generate_json_response`
-- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, JSON-only schema output
-
-### Evaluation Agent
-- **Persona:** rubric-style evaluator of extracted data
-- **Owned state fields:** `evaluation_score`, `evaluation_reasoning`
-- **Tool usage:** `generate_json_response`
-- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, score must be `0..100`
-
-### Decision Agent
-- **Persona:** deterministic threshold decision explainer
-- **Owned state fields:** `decision`, `confidence`, `decision_reason`
-- **Tool usage:** deterministic threshold classifier + `generate_json_response` for reason metadata
-- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, confidence must be `0.0..1.0`
-
-### Report Agent
-- **Persona:** report writer for applicant/internal stakeholders
-- **Owned state fields:** `report_applicant`, `report_internal`
-- **Tool usage:** `generate_json_response`, `write_reports_tool`
-- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, deterministic markdown output shape
-
-### Notification Agent
-- **Persona:** safe notification composer and dispatcher
-- **Owned state fields:** `notification_status`
-- **Tool usage:** `generate_json_response`, `send_notification_tool`
-- **Non-negotiable rules:** no hallucinated fields, no secret/API key leakage, no overwriting other agents' owned state, deterministic plain-text subject/body output
-
----
-
 ## Prerequisites
 
 - Python **3.11+**
@@ -97,10 +61,6 @@ Settings are loaded from environment variables and `.env` (if present).
 | `MAX_UPLOAD_SIZE_BYTES` | `10485760` | Max upload size (10 MB) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama base URL |
 | `EXTRACTION_MODEL` | `smollm:360m` | Extraction model label |
-| `EVALUATION_MODEL` | `gemma3:1b-it-q4_K_M` | Evaluation model label |
-| `DECISION_MODEL` | `phi4-mini:3.8b-q4_K_M` | Decision model label |
-| `REPORT_MODEL` | `gemma3:1b-it-q4_K_M` | Report model label |
-| `NOTIFICATION_MODEL` | `smollm:360m` | Notification model label |
 | `RESEND_API_KEY` | empty | Resend API key (optional) |
 | `RESEND_FROM_EMAIL` | `noreply@example.com` | Sender email |
 | `RETRY_ATTEMPTS` | `2` | Retries per workflow node |

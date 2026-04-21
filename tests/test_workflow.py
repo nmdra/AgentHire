@@ -7,11 +7,6 @@ from app.graph.workflow import build_workflow
 
 
 def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
-    class DummyWriter:
-        @staticmethod
-        def invoke(*_args: object, **_kwargs: object) -> dict[str, object]:
-            return {}
-
     candidate_file = tmp_path / "candidate.txt"
     candidate_file.write_text("Test Candidate", encoding="utf-8")
     monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
@@ -27,43 +22,6 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
                 "experience": [{"title": "Engineer", "company": "Acme", "duration": "2 years"}],
                 "education": [{"degree": "BSc", "institution": "Uni", "year": "2021"}],
                 "other_details": [],
-            }
-        ),
-    )
-    monkeypatch.setattr(
-        "app.agents.evaluation_agent.generate_json_response",
-        lambda **_kwargs: json.dumps(
-            {
-                "evaluation_score": 72.0,
-                "evaluation_reasoning": "Candidate has solid fundamentals and moderate experience.",
-            }
-        ),
-    )
-    monkeypatch.setattr(
-        "app.agents.decision_agent.generate_json_response",
-        lambda **_kwargs: json.dumps(
-            {
-                "decision_reason": "Score lands in review range based on thresholds.",
-                "confidence": 0.7,
-            }
-        ),
-    )
-    monkeypatch.setattr(
-        "app.agents.report_agent.generate_json_response",
-        lambda **_kwargs: json.dumps(
-            {
-                "report_applicant": "# Applicant Report\n\nYour application is under review.",
-                "report_internal": "# Internal Report\n\n- Decision: REVIEW",
-            }
-        ),
-    )
-    monkeypatch.setattr("app.agents.report_agent.write_reports_tool", DummyWriter())
-    monkeypatch.setattr(
-        "app.agents.notification_agent.generate_json_response",
-        lambda **_kwargs: json.dumps(
-            {
-                "subject": "Application update",
-                "body": "Your application is currently under review.",
             }
         ),
     )
