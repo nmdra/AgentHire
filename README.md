@@ -11,7 +11,6 @@ audit logs, and generates internal/applicant reports.
   - extraction
   - evaluation
   - decision
-  - (optional) human review
   - report generation
   - notification
 - Persist results in SQLite (`applications`, `audit_log`)
@@ -27,7 +26,7 @@ Decision routing:
 
 - `PASS` -> `report` -> `notify`
 - `FAIL` -> `report` -> `notify`
-- `REVIEW` -> `human_review` -> `report` -> `notify`
+- `REVIEW` -> `report` -> `notify`
 
 ---
 

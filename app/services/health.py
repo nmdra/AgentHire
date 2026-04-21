@@ -3,7 +3,7 @@ from __future__ import annotations
 from urllib.parse import urlparse
 import urllib.request
 
-from app.db.database import connect
+from app.tools.database import connect
 
 
 def check_db(db_path: str) -> str:

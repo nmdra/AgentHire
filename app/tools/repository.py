@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.core.constants import MAX_SUMMARY_LENGTH
-from app.db.database import connect
+from app.tools.database import connect
 
 ALLOWED_APPLICATION_COLUMNS = {
     "name",

@@ -9,11 +9,10 @@ from app.agents import (
     decision_agent_node,
     evaluation_agent_node,
     extraction_agent_node,
-    human_review_node,
     notification_agent_node,
     report_agent_node,
 )
-from app.db.repository import ApplicationRepository
+from app.tools.repository import ApplicationRepository
 from app.models.state import ApplicationState
 
 
@@ -49,17 +48,10 @@ def build_workflow(
         "notify",
         _with_retries(lambda s: notification_agent_node(s, repo, email_config), retries),
     )
-    graph.add_node("human_review", _with_retries(lambda s: human_review_node(s, repo), retries))  # type: ignore[call-overload]
-
     graph.set_entry_point("extract")
     graph.add_edge("extract", "evaluate")
     graph.add_edge("evaluate", "decide")
-    graph.add_conditional_edges(
-        "decide",
-        lambda state: "REVIEW" if state.get("decision") == "REVIEW" else "NORMAL",
-        {"REVIEW": "human_review", "NORMAL": "report"},
-    )
-    graph.add_edge("human_review", "report")
+    graph.add_edge("decide", "report")
     graph.add_edge("report", "notify")
     graph.add_edge("notify", END)
 

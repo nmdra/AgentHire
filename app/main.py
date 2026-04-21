@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from app.api.routes import router
 from app.core.config import Settings, get_settings
-from app.db.database import init_db
+from app.tools.database import init_db
 
 
 logging.basicConfig(

@@ -6,7 +6,6 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 
 from app.core.config import Settings, get_settings
-from app.db.repository import ApplicationRepository
 from app.models.schemas import (
     ApplicationStatusResponse,
     AuditLogResponse,
@@ -16,6 +15,7 @@ from app.models.schemas import (
 from app.services.file_storage import store_upload, validate_upload
 from app.services.health import check_db, check_ollama
 from app.services.pipeline import process_application
+from app.tools.repository import ApplicationRepository
 
 router = APIRouter()
 _UPLOAD_CHUNK_SIZE = 1024 * 1024

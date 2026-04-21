@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.db.repository import ApplicationRepository
 from app.graph.workflow import build_workflow
 from app.models.state import ApplicationState
+from app.tools.repository import ApplicationRepository
 
 
 def process_application(

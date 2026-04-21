@@ -4,7 +4,7 @@ import time
 from typing import Any
 
 from app.core.constants import MAX_SUMMARY_LENGTH
-from app.db.repository import ApplicationRepository
+from app.tools.repository import ApplicationRepository
 
 
 def add_agent_audit_log(

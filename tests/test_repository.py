@@ -1,6 +1,6 @@
 from app.agents.notification_agent import notification_agent_node
-from app.db.database import init_db
-from app.db.repository import ApplicationRepository
+from app.tools.database import init_db
+from app.tools.repository import ApplicationRepository
 
 
 def test_repository_roundtrip(tmp_path):

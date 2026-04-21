@@ -3,8 +3,8 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from app.agents.agent_logging import add_agent_audit_log
-from app.db.repository import ApplicationRepository
+from app.tools.agent_logging import add_agent_audit_log
+from app.tools.repository import ApplicationRepository
 from app.models.state import ApplicationState
 from app.tools.reporting import generate_report_tool, save_report_tool
 
