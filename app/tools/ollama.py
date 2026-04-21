@@ -17,6 +17,8 @@ def generate_json_response(
     model: str,
     prompt: str,
     temperature: float = 0.0,
+    top_p: float = 0.1,
+    stop: list[str] | None = None,
     timeout_seconds: float = 30.0,
 ) -> str:
     """Generate a JSON completion response from an Ollama model.
@@ -26,6 +28,8 @@ def generate_json_response(
         model: Model name to query.
         prompt: Prompt text sent to the model.
         temperature: Sampling temperature for generation.
+        top_p: Nucleus sampling parameter.
+        stop: Optional stop tokens.
         timeout_seconds: HTTP timeout in seconds.
 
     Returns:
@@ -43,12 +47,16 @@ def generate_json_response(
         )
     """
     endpoint = f"{base_url.rstrip('/')}/api/generate"
+    options: dict[str, object] = {"temperature": temperature, "top_p": top_p}
+    if stop:
+        options["stop"] = stop
+
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
         "format": "json",
-        "options": {"temperature": temperature},
+        "options": options,
     }
 
     try:

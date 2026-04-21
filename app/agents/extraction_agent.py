@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.database import update_application
+from app.agents.personas import EXTRACTION_PERSONA, build_structured_prompt
 from app.observability import traced
 from app.state import ApplicationState
 from app.tools.ollama import generate_json_response
@@ -19,6 +20,36 @@ from app.tools.parse_text import parse_text_tool
 from app.tools.validate_extraction import CandidateExtraction
 
 MAX_INPUT_CHARS = 32000
+
+
+def _strip_markdown_json_fences(text: str) -> str:
+    """Strip wrapping markdown JSON fences from model output.
+
+    Args:
+        text: Raw model output that may include fenced JSON.
+
+    Returns:
+        The unfenced JSON string when standard markdown fences are present,
+        otherwise the original trimmed text.
+
+    Example:
+        _strip_markdown_json_fences("```json\\n{\\"name\\": \\"A\\"}\\n```")
+        '{"name": "A"}'
+    """
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+
+    lines = stripped.splitlines()
+    if not lines:
+        return stripped
+    if lines[-1].strip() != "```":
+        return stripped
+
+    body = lines[1:-1]
+    if lines[0].strip().lower() in {"```json", "```"}:
+        return "\n".join(body).strip()
+    return stripped
 
 
 def _read_input(file_path: str) -> str:
@@ -32,15 +63,32 @@ def _read_input(file_path: str) -> str:
     raise ValueError("Unsupported file type. Use PDF, TXT, MD, or JSON")
 
 
-def _build_prompt(raw_text: str, correction_error: str | None = None) -> str:
-    instruction = (
-        "Extract applicant details as strict JSON with keys: "
-        "name, email, phone, skills (array), experience, education. "
-        "Return JSON only and include all keys."
+def _build_extraction_prompt(raw_text: str, correction_error: str | None = None) -> str:
+    task = (
+        "Extract applicant details from the provided text into the exact structured JSON schema."
     )
     if correction_error:
-        instruction = f"{instruction}\nPrevious response failed validation: {correction_error}"
-    return f"{instruction}\n\nApplication:\n{raw_text[:MAX_INPUT_CHARS]}"
+        task = f"{task}\nPrevious response failed validation: {correction_error}"
+    context = f"document_text:\n{raw_text[:MAX_INPUT_CHARS]}"
+    output = (
+        "Return JSON only with exactly these keys:\n"
+        '{\n'
+        '  "name": string or null,\n'
+        '  "email": string or null,\n'
+        '  "phone": string or null,\n'
+        '  "website": string or null,\n'
+        '  "skills": [string, ...],\n'
+        '  "experience": [{"title": string or null, "company": string or null, "duration": string or null}, ...],\n'
+        '  "education": [{"degree": string or null, "institution": string or null, "year": string or null}, ...],\n'
+        '  "other_details": [string, ...]\n'
+        '}'
+    )
+    return build_structured_prompt(
+        persona=EXTRACTION_PERSONA,
+        task=task,
+        context=context,
+        output=output,
+    )
 
 
 def _extract_with_retry(
@@ -52,12 +100,13 @@ def _extract_with_retry(
         response_text = generate_json_response(
             base_url=base_url,
             model=model,
-            prompt=_build_prompt(raw_text, correction_error=error),
+            prompt=_build_extraction_prompt(raw_text, correction_error=error),
             temperature=0.0,
+            top_p=0.1,
             timeout_seconds=timeout_seconds,
         )
         try:
-            payload = json.loads(response_text)
+            payload = json.loads(_strip_markdown_json_fences(response_text))
             validated = CandidateExtraction.model_validate(payload)
             return validated.model_dump()
         except (json.JSONDecodeError, ValidationError) as exc:

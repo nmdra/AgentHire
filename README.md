@@ -11,7 +11,6 @@ audit logs, and generates internal/applicant reports.
   - extraction
   - evaluation
   - decision
-  - (optional) human review
   - report generation
   - notification
 - Persist results in SQLite (`applications`, `audit_log`)
@@ -27,7 +26,7 @@ Decision routing:
 
 - `PASS` -> `report` -> `notify`
 - `FAIL` -> `report` -> `notify`
-- `REVIEW` -> `human_review` -> `report` -> `notify`
+- `REVIEW` -> `report` -> `notify`
 
 ---
 
@@ -62,10 +61,6 @@ Settings are loaded from environment variables and `.env` (if present).
 | `MAX_UPLOAD_SIZE_BYTES` | `10485760` | Max upload size (10 MB) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama base URL |
 | `EXTRACTION_MODEL` | `smollm:360m` | Extraction model label |
-| `EVALUATION_MODEL` | `gemma3:1b-it-q4_K_M` | Evaluation model label |
-| `DECISION_MODEL` | `phi4-mini:3.8b-q4_K_M` | Decision model label |
-| `REPORT_MODEL` | `gemma3:1b-it-q4_K_M` | Report model label |
-| `NOTIFICATION_MODEL` | `smollm:360m` | Notification model label |
 | `RESEND_API_KEY` | empty | Resend API key (optional) |
 | `RESEND_FROM_EMAIL` | `noreply@example.com` | Sender email |
 | `RETRY_ATTEMPTS` | `2` | Retries per workflow node |

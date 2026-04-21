@@ -29,9 +29,15 @@ def test_extraction_success(monkeypatch: pytest.MonkeyPatch, base_state: dict[st
                 "name": "Jane Doe",
                 "email": "jane@example.com",
                 "phone": "+1-123-456-7890",
+                "website": None,
                 "skills": ["Python", "SQL"],
-                "experience": "3 years",
-                "education": "BSc Computer Science",
+                "experience": [
+                    {"title": "Backend Engineer", "company": "Tech Corp", "duration": "3 years"}
+                ],
+                "education": [
+                    {"degree": "BSc Computer Science", "institution": "State U", "year": "2020"}
+                ],
+                "other_details": ["AWS Certified"],
             }
         ),
     )
@@ -53,9 +59,11 @@ def test_extraction_retry_once(monkeypatch: pytest.MonkeyPatch, base_state: dict
                 "name": "Jane Doe",
                 "email": "jane@example.com",
                 "phone": None,
+                "website": None,
                 "skills": ["Python"],
-                "experience": "3 years",
-                "education": "BSc",
+                "experience": [{"title": "Engineer", "company": None, "duration": "3 years"}],
+                "education": [],
+                "other_details": [],
             }
         ),
     ])
@@ -115,5 +123,92 @@ def test_missing_optional_fields_default_to_null(
     extracted = result["extracted_json"]
     assert extracted["email"] is None
     assert extracted["phone"] is None
-    assert extracted["experience"] is None
-    assert extracted["education"] is None
+    assert extracted["website"] is None
+    assert extracted["experience"] == []
+    assert extracted["education"] == []
+    assert extracted["other_details"] == []
+
+
+def test_extraction_accepts_fenced_json(
+    monkeypatch: pytest.MonkeyPatch, base_state: dict[str, object]
+) -> None:
+    monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
+    call_count = {"count": 0}
+    valid_payload = {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "phone": None,
+        "website": None,
+        "skills": ["Python"],
+        "experience": [{"title": "Engineer", "company": None, "duration": "3 years"}],
+        "education": [],
+        "other_details": [],
+    }
+
+    def mock_generate_fenced(**kwargs: object) -> str:
+        call_count["count"] += 1
+        return f"```json\n{json.dumps(valid_payload)}\n```"
+
+    monkeypatch.setattr("app.agents.extraction_agent.generate_json_response", mock_generate_fenced)
+
+    result = extraction_agent(base_state)
+
+    assert result["status"] == "extracted"
+    assert result["extracted_json"]["email"] == "jane@example.com"
+    assert call_count["count"] == 1
+
+
+def test_extraction_retries_when_extra_fields_present(
+    monkeypatch: pytest.MonkeyPatch, base_state: dict[str, object]
+) -> None:
+    monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
+    call_count = {"count": 0}
+    responses = iter([
+        json.dumps(
+            {
+                "name": "Jane Doe",
+                "email": "jane@example.com",
+                "phone": None,
+                "website": None,
+                "skills": ["Python"],
+                "experience": [
+                    {
+                        "title": "Engineer",
+                        "company": "Acme",
+                        "duration": "3 years",
+                        "extra_nested_key": "unexpected",
+                    }
+                ],
+                "education": [],
+                "other_details": [],
+                "extra_key": "unexpected",
+            }
+        ),
+        json.dumps(
+            {
+                "name": "Jane Doe",
+                "email": "jane@example.com",
+                "phone": None,
+                "website": None,
+                "skills": ["Python"],
+                "experience": [{"title": "Engineer", "company": "Acme", "duration": "3 years"}],
+                "education": [],
+                "other_details": [],
+            }
+        ),
+    ])
+
+    def mock_generate_with_retry(**kwargs: object) -> str:
+        call_count["count"] += 1
+        return next(responses)
+
+    monkeypatch.setattr(
+        "app.agents.extraction_agent.generate_json_response",
+        mock_generate_with_retry,
+    )
+
+    result = extraction_agent(base_state)
+
+    assert result["status"] == "extracted"
+    assert result["extracted_json"]["name"] == "Jane Doe"
+    assert call_count["count"] == 2
