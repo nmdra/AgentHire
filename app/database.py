@@ -9,10 +9,26 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from collections.abc import Iterator
+
+ALLOWED_UPDATE_COLUMNS = {
+    "status",
+    "extracted_json",
+    "evaluation_score",
+    "evaluation_reasoning",
+    "decision",
+    "confidence",
+    "decision_reason",
+    "report_applicant",
+    "report_internal",
+    "notification_status",
+    "errors",
+    "updated_at",
+}
 
 
 @contextmanager
-def get_connection(db_path: str) -> sqlite3.Connection:
+def get_connection(db_path: str) -> Iterator[sqlite3.Connection]:
     """Yield a SQLite connection configured for row access."""
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(db_path)
@@ -94,6 +110,9 @@ def update_application(db_path: str, application_id: str, values: dict[str, Any]
             serialized[key] = value
 
     serialized["updated_at"] = datetime.now(UTC).isoformat()
+    unknown_columns = set(serialized).difference(ALLOWED_UPDATE_COLUMNS)
+    if unknown_columns:
+        raise ValueError(f"Unsupported update column(s): {sorted(unknown_columns)}")
 
     columns = ", ".join(f"{column} = ?" for column in serialized)
     params = list(serialized.values()) + [application_id]

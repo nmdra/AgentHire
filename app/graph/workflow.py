@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from langgraph.graph import END, START, StateGraph
 
 from app.agents.decision_agent import decision_agent
@@ -12,7 +14,7 @@ from app.agents.report_agent import report_agent
 from app.state import ApplicationState
 
 
-def build_workflow():
+def build_workflow() -> Any:
     """Compile and return the Phase 1 linear workflow graph."""
     graph = StateGraph(ApplicationState)
     graph.add_node("extract", extraction_agent)

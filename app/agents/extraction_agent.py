@@ -24,11 +24,11 @@ MAX_INPUT_CHARS = 32000
 def _read_input(file_path: str) -> str:
     extension = Path(file_path).suffix.lower()
     if extension == ".pdf":
-        return parse_pdf_tool.invoke({"path": file_path})
+        return str(parse_pdf_tool.invoke({"path": file_path}))
     if extension in {".txt", ".md"}:
-        return parse_text_tool.invoke({"path": file_path})
+        return str(parse_text_tool.invoke({"path": file_path}))
     if extension == ".json":
-        return parse_json_tool.invoke({"path": file_path})
+        return str(parse_json_tool.invoke({"path": file_path}))
     raise ValueError("Unsupported file type. Use PDF, TXT, MD, or JSON")
 
 
@@ -43,14 +43,18 @@ def _build_prompt(raw_text: str, correction_error: str | None = None) -> str:
     return f"{instruction}\n\nApplication:\n{raw_text[:MAX_INPUT_CHARS]}"
 
 
-def _extract_with_retry(raw_text: str, *, model: str, base_url: str) -> dict[str, Any]:
+def _extract_with_retry(
+    raw_text: str, *, model: str, base_url: str, timeout_seconds: float
+) -> dict[str, Any]:
     error: str | None = None
-    for _attempt in range(2):
+    max_attempts = 2
+    for attempt in range(max_attempts):
         response_text = generate_json_response(
             base_url=base_url,
             model=model,
             prompt=_build_prompt(raw_text, correction_error=error),
             temperature=0.0,
+            timeout_seconds=timeout_seconds,
         )
         try:
             payload = json.loads(response_text)
@@ -58,8 +62,12 @@ def _extract_with_retry(raw_text: str, *, model: str, base_url: str) -> dict[str
             return validated.model_dump()
         except (json.JSONDecodeError, ValidationError) as exc:
             error = str(exc)
+            if attempt + 1 >= max_attempts:
+                raise ValueError(
+                    f"Extraction output failed validation after retry: {error}"
+                ) from exc
 
-    raise ValueError(f"Extraction output failed validation after retry: {error}")
+    raise ValueError("Extraction output failed validation after retry")
 
 
 @traced("extraction_agent")
@@ -72,7 +80,12 @@ def extraction_agent(state: ApplicationState) -> dict[str, Any]:
 
     settings = get_settings()
     raw_text = _read_input(file_path)
-    extracted = _extract_with_retry(raw_text, model=settings.extraction_model, base_url=settings.ollama_base_url)
+    extracted = _extract_with_retry(
+        raw_text,
+        model=settings.extraction_model,
+        base_url=settings.ollama_base_url,
+        timeout_seconds=settings.ollama_timeout_seconds,
+    )
 
     update_application(
         settings.db_path,
