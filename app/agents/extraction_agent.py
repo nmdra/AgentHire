@@ -23,6 +23,18 @@ MAX_INPUT_CHARS = 32000
 
 
 def _strip_markdown_json_fences(text: str) -> str:
+    """Strip wrapping markdown JSON fences from model output.
+
+    Args:
+        text: Raw model output that may include fenced JSON.
+
+    Returns:
+        The unfenced JSON string when standard markdown fences are present,
+        otherwise the original trimmed text.
+
+    Example:
+        _strip_markdown_json_fences("```json\\n{\\"name\\": \\"A\\"}\\n```")
+    """
     stripped = text.strip()
     if not stripped.startswith("```"):
         return stripped
