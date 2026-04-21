@@ -34,13 +34,29 @@ def _read_input(file_path: str) -> str:
 
 def _build_prompt(raw_text: str, correction_error: str | None = None) -> str:
     instruction = (
-        "Extract applicant details as strict JSON with keys: "
-        "name, email, phone, skills (array), experience, education. "
-        "Return JSON only and include all keys."
+        "You are a precise document parsing agent.\n\n"
+        "Your ONLY job is to read the provided document text and return a single valid JSON object.\n\n"
+        "Rules:\n"
+        "- Return ONLY the JSON object. No explanation, markdown, or conversational text.\n"
+        "- If a field is not present in the document, set it to null.\n"
+        "- For list fields, use an empty list [] if nothing is found.\n"
+        "- Never invent or guess data. Only extract what is explicitly stated.\n"
+        '- Capture significant details not covered by primary fields in "other_details".\n\n'
+        "Output schema (use exactly these keys):\n"
+        '{\n'
+        '  "name":       string or null,\n'
+        '  "email":      string or null,\n'
+        '  "phone":      string or null,\n'
+        '  "website":    string or null,\n'
+        '  "skills":     [string, ...],\n'
+        '  "experience": [{"title": string, "company": string, "duration": string}, ...],\n'
+        '  "education":  [{"degree": string, "institution": string, "year": string}, ...],\n'
+        '  "other_details": [string, ...]\n'
+        '}\n'
     )
     if correction_error:
         instruction = f"{instruction}\nPrevious response failed validation: {correction_error}"
-    return f"{instruction}\n\nApplication:\n{raw_text[:MAX_INPUT_CHARS]}"
+    return f"{instruction}\n\nQuestion: {raw_text[:MAX_INPUT_CHARS]}\nAnswer (JSON only):"
 
 
 def _extract_with_retry(
@@ -54,6 +70,8 @@ def _extract_with_retry(
             model=model,
             prompt=_build_prompt(raw_text, correction_error=error),
             temperature=0.0,
+            top_p=0.1,
+            stop=["```"],
             timeout_seconds=timeout_seconds,
         )
         try:

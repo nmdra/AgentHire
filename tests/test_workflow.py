@@ -17,9 +17,11 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
                 "name": "Test Candidate",
                 "email": "test@example.com",
                 "phone": None,
+                "website": None,
                 "skills": ["Python"],
-                "experience": "2 years",
-                "education": "BSc",
+                "experience": [{"title": "Engineer", "company": "Acme", "duration": "2 years"}],
+                "education": [{"degree": "BSc", "institution": "Uni", "year": "2021"}],
+                "other_details": [],
             }
         ),
     )

@@ -29,9 +29,15 @@ def test_extraction_success(monkeypatch: pytest.MonkeyPatch, base_state: dict[st
                 "name": "Jane Doe",
                 "email": "jane@example.com",
                 "phone": "+1-123-456-7890",
+                "website": None,
                 "skills": ["Python", "SQL"],
-                "experience": "3 years",
-                "education": "BSc Computer Science",
+                "experience": [
+                    {"title": "Backend Engineer", "company": "Tech Corp", "duration": "3 years"}
+                ],
+                "education": [
+                    {"degree": "BSc Computer Science", "institution": "State U", "year": "2020"}
+                ],
+                "other_details": ["AWS Certified"],
             }
         ),
     )
@@ -53,9 +59,11 @@ def test_extraction_retry_once(monkeypatch: pytest.MonkeyPatch, base_state: dict
                 "name": "Jane Doe",
                 "email": "jane@example.com",
                 "phone": None,
+                "website": None,
                 "skills": ["Python"],
-                "experience": "3 years",
-                "education": "BSc",
+                "experience": [{"title": "Engineer", "company": None, "duration": "3 years"}],
+                "education": [],
+                "other_details": [],
             }
         ),
     ])
@@ -115,5 +123,7 @@ def test_missing_optional_fields_default_to_null(
     extracted = result["extracted_json"]
     assert extracted["email"] is None
     assert extracted["phone"] is None
-    assert extracted["experience"] is None
-    assert extracted["education"] is None
+    assert extracted["website"] is None
+    assert extracted["experience"] == []
+    assert extracted["education"] == []
+    assert extracted["other_details"] == []
