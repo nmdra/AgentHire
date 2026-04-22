@@ -46,7 +46,12 @@ def generate_json_response(
     model: str,
     prompt: str,
     temperature: float = 0.0,
-    top_p: float = 0.1,
+    top_k: int = 10,
+    top_p: float = 0.9,
+    repeat_penalty: float = 1.1,
+    seed: int = 42,
+    num_ctx: int = 2048,
+    num_predict: int = 600,
     stop: list[str] | None = None,
     timeout_seconds: float = 30.0,
 ) -> str:
@@ -60,7 +65,12 @@ def generate_json_response(
         model: Ollama model name to query.
         prompt: Prompt text sent to the model.
         temperature: Sampling temperature for generation.
+        top_k: Top-k sampling parameter.
         top_p: Nucleus sampling parameter.
+        repeat_penalty: Penalty for repeated tokens.
+        seed: Random seed for generation.
+        num_ctx: Context window size.
+        num_predict: Maximum number of tokens to predict.
         stop: Optional list of stop tokens.
         timeout_seconds: Request timeout in seconds.
 
@@ -79,11 +89,19 @@ def generate_json_response(
         ... )
         '{"name": "Alice Perera", ...}'
     """
+    if stop is None:
+        stop = ["<|end-output|>", "<|endoftext|>"]
+
     llm = OllamaLLM(
         model=model,
         base_url=base_url,
         temperature=temperature,
+        top_k=top_k,
         top_p=top_p,
+        repeat_penalty=repeat_penalty,
+        seed=seed,
+        num_ctx=num_ctx,
+        num_predict=num_predict,
         stop=stop,
         format="json",
         client_kwargs={"timeout": timeout_seconds},

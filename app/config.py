@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from os import getenv
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @dataclass(frozen=True)
@@ -15,7 +18,7 @@ class Settings:
     reports_dir: str = getenv("REPORTS_DIR", "reports")
     max_upload_size_bytes: int = int(getenv("MAX_UPLOAD_SIZE_BYTES", "10485760"))
     ollama_base_url: str = getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    extraction_model: str = getenv("EXTRACTION_MODEL", "agenthire-extractor")
+    extraction_model: str = getenv("EXTRACTION_MODEL", "hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M")
     ollama_timeout_seconds: float = float(getenv("OLLAMA_TIMEOUT_SECONDS", "30"))
 
 

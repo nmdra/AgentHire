@@ -35,21 +35,27 @@ def _read_input(file_path: str) -> str:
 def _build_extraction_prompt(raw_text: str, correction_error: str | None = None) -> str:
     """Build the prompt sent to the extraction model.
 
-    The ``agenthire-extractor`` Modelfile TEMPLATE already injects the schema
-    and extraction instruction, so only the raw document text is required.
-    An optional correction note is prepended on retry to guide the model.
-
-    Args:
-        raw_text: The raw applicant document text.
-        correction_error: Validation error message from the previous attempt, if any.
-
-    Returns:
-        The prompt string to send to the model.
+    Formats the prompt according to the NuExtract template.
     """
     text = raw_text[:MAX_INPUT_CHARS]
+    
+    template = """{
+    "name": "",
+    "email": "",
+    "phone": "",
+    "website": "",
+    "skills": [""],
+    "experience": [{"title": "", "company": "", "duration": ""}],
+    "education": [{"degree": "", "institution": "", "year": ""}],
+    "other_details": [""]
+}"""
+
+    prompt = f"<|input|>\n### Template:\n{template}\n### Text:\n{text}\n\n<|output|>\n"
+    
     if correction_error:
-        return f"Previous response failed validation: {correction_error}\n\n{text}"
-    return text
+        prompt = f"Previous response failed validation: {correction_error}\n\n" + prompt
+        
+    return prompt
 
 
 def _extract_with_retry(
@@ -62,8 +68,6 @@ def _extract_with_retry(
             base_url=base_url,
             model=model,
             prompt=_build_extraction_prompt(raw_text, correction_error=error),
-            temperature=0.0,
-            top_p=0.1,
             timeout_seconds=timeout_seconds,
         )
         try:
