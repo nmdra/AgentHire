@@ -23,16 +23,14 @@ class ValidationOutput(BaseModel):
 def _build_validation_prompt(extracted_json: dict[str, Any]) -> str:
     """Build the prompt sent to the validation model."""
     task = (
-        "Perform a strict audit of the following JSON data. "
-        "Apply these RULES:\n"
-        "1. 'name' must be a real person's name. It cannot be null, empty, or a placeholder like 'user', 'applicant', or 'candidate'.\n"
-        "2. 'email' must be present, not null/empty, and follow basic format (contains '@').\n"
-        "3. If either 1 or 2 fail (including placeholder names), set 'is_valid' to false.\n"
-        "4. If data is valid, set 'is_valid' to true and 'validation_reason' to 'Valid'.\n"
-        "5. If invalid, provide a specific, concise explanation in 'validation_reason'."
+        "Audit the provided JSON and decide if it is valid based on these strict steps:\n"
+        "1. Check the 'name' field. If it is null, 'Unknown', or 'user', is_valid = false.\n"
+        "2. Check the 'email' field. If it is null or empty, is_valid = false.\n"
+        "3. If both are present and real, is_valid = true.\n"
+        "Reason Step-by-Step, but only output the final JSON."
     )
     context = json.dumps(extracted_json, indent=2)
-    output = "JSON object with 'is_valid' and 'validation_reason'."
+    output = "JSON result: {'is_valid': bool, 'validation_reason': 'short explanation'}"
     
     return build_structured_prompt(
         persona=VALIDATION_PERSONA,
