@@ -26,7 +26,13 @@ def build_workflow() -> Any:
     graph.add_node("notify", notification_agent)
 
     graph.add_edge(START, "extract")
-    graph.add_edge("extract", "validate")
+    
+    def route_after_extraction(state: ApplicationState) -> str:
+        if state.get("status") == "failed":
+            return END
+        return "validate"
+        
+    graph.add_conditional_edges("extract", route_after_extraction)
     
     def route_after_validation(state: ApplicationState) -> str:
         if state.get("is_valid"):
