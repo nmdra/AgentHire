@@ -24,7 +24,7 @@ def extract_first_json(text: str) -> str:
         balanced brace pair is found.
 
     Example:
-        extract_first_json('{"name": "Alice"} extra text')
+        >>> extract_first_json('{"name": "Alice"} extra text')
         '{"name": "Alice"}'
     """
     depth, start = 0, None
@@ -71,12 +71,13 @@ def generate_json_response(
         OllamaError: If the LangChain/Ollama call raises an exception.
 
     Example:
-        generate_json_response(
-            base_url="http://localhost:11434",
-            model="agenthire-extractor",
-            prompt="Alice Perera\\nEmail: alice@example.com",
-            timeout_seconds=30.0,
-        )
+        >>> generate_json_response(
+        ...     base_url="http://localhost:11434",
+        ...     model="agenthire-extractor",
+        ...     prompt="Alice Perera\\nEmail: alice@example.com",
+        ...     timeout_seconds=30.0,
+        ... )
+        '{"name": "Alice Perera", ...}'
     """
     llm = OllamaLLM(
         model=model,

@@ -21,36 +21,6 @@ from app.tools.validate_extraction import CandidateExtraction
 MAX_INPUT_CHARS = 32000
 
 
-def _strip_markdown_json_fences(text: str) -> str:
-    """Strip wrapping markdown JSON fences from model output.
-
-    Args:
-        text: Raw model output that may include fenced JSON.
-
-    Returns:
-        The unfenced JSON string when standard markdown fences are present,
-        otherwise the original trimmed text.
-
-    Example:
-        _strip_markdown_json_fences("```json\\n{\\"name\\": \\"A\\"}\\n```")
-        '{"name": "A"}'
-    """
-    stripped = text.strip()
-    if not stripped.startswith("```"):
-        return stripped
-
-    lines = stripped.splitlines()
-    if not lines:
-        return stripped
-    if lines[-1].strip() != "```":
-        return stripped
-
-    body = lines[1:-1]
-    if lines[0].strip().lower() in {"```json", "```"}:
-        return "\n".join(body).strip()
-    return stripped
-
-
 def _read_input(file_path: str) -> str:
     extension = Path(file_path).suffix.lower()
     if extension == ".pdf":
@@ -97,7 +67,7 @@ def _extract_with_retry(
             timeout_seconds=timeout_seconds,
         )
         try:
-            payload = json.loads(extract_first_json(_strip_markdown_json_fences(response_text)))
+            payload = json.loads(extract_first_json(response_text))
             validated = CandidateExtraction.model_validate(payload)
             return validated.model_dump()
         except (json.JSONDecodeError, ValidationError) as exc:
