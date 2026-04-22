@@ -39,7 +39,7 @@ def traced(agent_name: str) -> Callable[[Callable[..., dict[str, Any]]], Callabl
                 logger.info(f"Agent '{agent_name}' completed successfully for application '{application_id}'")
             except Exception as exc:  # pragma: no cover - defensive catch
                 ok = False
-                result = {}
+                result = state.copy()
                 output_summary = ""
                 error_msg = str(exc)
                 logger.exception(f"Agent '{agent_name}' failed for application '{application_id}': {exc}")
