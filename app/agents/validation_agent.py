@@ -25,9 +25,9 @@ def _build_validation_prompt(extracted_json: dict[str, Any]) -> str:
     task = (
         "Perform a strict audit of the following JSON data. "
         "Apply these RULES:\n"
-        "1. 'name' must be present and not null/empty.\n"
+        "1. 'name' must be a real person's name. It cannot be null, empty, or a placeholder like 'user', 'applicant', or 'candidate'.\n"
         "2. 'email' must be present, not null/empty, and follow basic format (contains '@').\n"
-        "3. If either 1 or 2 fail, set 'is_valid' to false.\n"
+        "3. If either 1 or 2 fail (including placeholder names), set 'is_valid' to false.\n"
         "4. If data is valid, set 'is_valid' to true and 'validation_reason' to 'Valid'.\n"
         "5. If invalid, provide a specific, concise explanation in 'validation_reason'."
     )

@@ -67,7 +67,7 @@ VALIDATION_PERSONA = PersonaSpec(
     hard_constraints=(
         *GLOBAL_GUARDRAILS,
         "STRICT JSON OUTPUT ONLY. No conversational text.",
-        "is_valid must be FALSE if 'name' is null, empty, or 'Unknown'.",
+        "is_valid must be FALSE if 'name' is null, empty, or generic placeholders like 'user', 'candidate', 'applicant', 'Unknown'.",
         "is_valid must be FALSE if 'email' is null, empty, or does not contain an '@' symbol.",
     ),
     output_contract=(
