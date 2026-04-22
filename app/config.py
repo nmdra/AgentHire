@@ -15,7 +15,7 @@ class Settings:
     reports_dir: str = getenv("REPORTS_DIR", "reports")
     max_upload_size_bytes: int = int(getenv("MAX_UPLOAD_SIZE_BYTES", "10485760"))
     ollama_base_url: str = getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    extraction_model: str = getenv("EXTRACTION_MODEL", "smollm:360m")
+    extraction_model: str = getenv("EXTRACTION_MODEL", "agenthire-extractor")
     ollama_timeout_seconds: float = float(getenv("OLLAMA_TIMEOUT_SECONDS", "30"))
 
 

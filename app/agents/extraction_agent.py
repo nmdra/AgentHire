@@ -10,10 +10,9 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.database import update_application
-from app.agents.personas import EXTRACTION_PERSONA, build_structured_prompt
 from app.observability import traced
 from app.state import ApplicationState
-from app.tools.ollama import generate_json_response
+from app.tools.ollama import extract_first_json, generate_json_response
 from app.tools.parse_json import parse_json_tool
 from app.tools.parse_pdf import parse_pdf_tool
 from app.tools.parse_text import parse_text_tool
@@ -64,31 +63,23 @@ def _read_input(file_path: str) -> str:
 
 
 def _build_extraction_prompt(raw_text: str, correction_error: str | None = None) -> str:
-    task = (
-        "Extract applicant details from the provided text into the exact structured JSON schema."
-    )
+    """Build the prompt sent to the extraction model.
+
+    The ``agenthire-extractor`` Modelfile TEMPLATE already injects the schema
+    and extraction instruction, so only the raw document text is required.
+    An optional correction note is prepended on retry to guide the model.
+
+    Args:
+        raw_text: The raw applicant document text.
+        correction_error: Validation error message from the previous attempt, if any.
+
+    Returns:
+        The prompt string to send to the model.
+    """
+    text = raw_text[:MAX_INPUT_CHARS]
     if correction_error:
-        task = f"{task}\nPrevious response failed validation: {correction_error}"
-    context = f"document_text:\n{raw_text[:MAX_INPUT_CHARS]}"
-    output = (
-        "Return JSON only with exactly these keys:\n"
-        '{\n'
-        '  "name": string or null,\n'
-        '  "email": string or null,\n'
-        '  "phone": string or null,\n'
-        '  "website": string or null,\n'
-        '  "skills": [string, ...],\n'
-        '  "experience": [{"title": string or null, "company": string or null, "duration": string or null}, ...],\n'
-        '  "education": [{"degree": string or null, "institution": string or null, "year": string or null}, ...],\n'
-        '  "other_details": [string, ...]\n'
-        '}'
-    )
-    return build_structured_prompt(
-        persona=EXTRACTION_PERSONA,
-        task=task,
-        context=context,
-        output=output,
-    )
+        return f"Previous response failed validation: {correction_error}\n\n{text}"
+    return text
 
 
 def _extract_with_retry(
@@ -106,7 +97,7 @@ def _extract_with_retry(
             timeout_seconds=timeout_seconds,
         )
         try:
-            payload = json.loads(_strip_markdown_json_fences(response_text))
+            payload = json.loads(extract_first_json(_strip_markdown_json_fences(response_text)))
             validated = CandidateExtraction.model_validate(payload)
             return validated.model_dump()
         except (json.JSONDecodeError, ValidationError) as exc:
