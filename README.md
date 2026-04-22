@@ -7,15 +7,41 @@ audit logs, and generates internal/applicant reports.
 ## What it does
 
 - Upload and process application files (`.pdf`, `.txt`, `.md`, `.json`)
-- Run a workflow of specialized agents:
-  - extraction
-  - validation
-  - evaluation
-  - decision
-  - report generation
-  - notification
+- Run a multi-agent workflow to evaluate candidates.
 - Persist results in SQLite (`applications`, `audit_log`)
 - Expose status and audit logs through HTTP endpoints
+
+---
+
+## Current Agent Implementation Status
+
+The workflow involves a series of specialized LLM agents. Here is the current progress of their implementation:
+
+- ✅ **Extraction Agent**: **Completed**. Extracts raw unstructured text from candidate resumes/documents into a strictly typed JSON format using a customized LLM model.
+- ✅ **Validation Agent**: **Completed**. Reviews the extracted JSON output to verify that critical fields (such as `name` and `email`) are present and not empty, routing the workflow accordingly.
+- 🚧 **Evaluation Agent**: **Pending** (Currently Mocked). Evaluates the valid extracted candidate data against a scoring rubric.
+- 🚧 **Decision Agent**: **Pending** (Currently Mocked). Makes a final `PASS`, `FAIL`, or `REVIEW` decision based on the evaluation score and parameters.
+- 🚧 **Report Agent**: **Pending** (Currently Mocked). Generates structured Markdown reports for both internal HR use and the applicant.
+- 🚧 **Notification Agent**: **Pending** (Currently Mocked). Simulates dispatching email updates to the applicant based on the system's decision.
+
+---
+
+## Technology Stack and Libraries
+
+AgentHire is built with a modern, asynchronous, and local-first Python stack:
+
+### Frameworks & Tools
+- **FastAPI**: A high-performance async web framework used to expose the HTTP endpoints for file uploads, status polling, and health checks.
+- **LangGraph**: A state-machine orchestration framework from LangChain used to define the sequential and conditional execution pipeline of the agents (the "Workflow").
+- **LangChain (`langchain-ollama`)**: The standardized LLM integration layer, used specifically to connect the application code seamlessly to the local Ollama inference server.
+- **SQLite**: A fast, embedded relational database used for persistence. It stores the `ApplicationState` between steps and maintains a detailed `audit_log` of every model call and latency.
+- **PyMuPDF & PyMuPDF4LLM**: Advanced PDF parsing tools utilized by the extraction layer to convert complex PDF resumes into clean, LLM-readable Markdown text.
+- **Pydantic**: A data validation library used to validate and enforce the strict JSON structures returned by the local models before the data moves to the next agent in the pipeline.
+- **Ollama**: The local inference engine that serves the large language models. It ensures that candidate data remains entirely on-premises, preventing sensitive information leakage.
+
+### Language Models Used
+- **Extraction Model (`hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M`)**: A fine-tuned, extremely lightweight model specifically trained to map unstructured resume text into rigid JSON schema templates. Used by the Extraction Agent.
+- **Validation Model (`gemma3:1b-it-q4_K_M`)**: A lightweight instruct model by Google, optimized for fast and capable reasoning. Used by the Validation Agent to perform sanity checks and logic verification on the extracted JSON.
 
 ---
 
@@ -61,7 +87,7 @@ Settings are loaded from environment variables and `.env` (if present).
 | `REPORTS_DIR` | `reports` | Generated report files directory |
 | `MAX_UPLOAD_SIZE_BYTES` | `10485760` | Max upload size (10 MB) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama base URL |
-| `EXTRACTION_MODEL` | `smollm:360m` | Extraction model label |
+| `EXTRACTION_MODEL` | `hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M` | Extraction model label |
 | `VALIDATION_MODEL` | `gemma3:1b-it-q4_K_M` | Validation model label |
 | `RESEND_API_KEY` | empty | Resend API key (optional) |
 | `RESEND_FROM_EMAIL` | `noreply@example.com` | Sender email |
@@ -217,9 +243,8 @@ Returns ordered per-agent/tool execution logs including:
 If you want model-related health checks to return `ok`, pull and run the configured models:
 
 ```bash
-ollama pull smollm:360m
+ollama pull hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M
 ollama pull gemma3:1b-it-q4_K_M
-ollama pull phi4-mini:3.8b-q4_K_M
 ```
 
 ---
