@@ -16,6 +16,8 @@ dependencies = [
   "pymupdf4llm>=1.27.2.1",
   "langchain-ollama>=0.2.0",
   "loguru>=0.7.2",
+  "pytesseract>=0.3.10",
+  "pillow>=10.0.0",
 ]
 
 [project.optional-dependencies]
