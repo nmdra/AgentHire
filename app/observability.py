@@ -42,7 +42,7 @@ def traced(agent_name: str) -> Callable[[Callable[..., dict[str, Any]]], Callabl
                 result = {}
                 output_summary = ""
                 error_msg = str(exc)
-                logger.error(f"Agent '{agent_name}' failed for application '{application_id}': {exc}", exc_info=True)
+                logger.exception(f"Agent '{agent_name}' failed for application '{application_id}': {exc}")
 
             latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
             entry = {

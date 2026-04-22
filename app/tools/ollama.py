@@ -118,5 +118,5 @@ def generate_json_response(
         logger.info("Ollama call successful")
         return response
     except Exception as exc:
-        logger.error(f"Ollama request failed: {exc}", exc_info=True)
+        logger.exception(f"Ollama request failed: {exc}")
         raise OllamaError(f"Ollama request failed: {exc}") from exc

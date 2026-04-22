@@ -55,7 +55,7 @@ def _process_application(application_id: str, file_path: str) -> None:
         result: dict[str, Any] = workflow.invoke(initial_state)
         logger.info(f"Completed workflow processing for application '{application_id}'")
     except Exception as exc:
-        logger.error(f"Workflow processing failed for application '{application_id}': {exc}", exc_info=True)
+        logger.exception(f"Workflow processing failed for application '{application_id}': {exc}")
         return
 
     fields_to_persist = {

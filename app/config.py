@@ -21,6 +21,7 @@ class Settings:
     extraction_model: str = getenv("EXTRACTION_MODEL", "hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M")
     validation_model: str = getenv("VALIDATION_MODEL", "gemma3:1b-it-q4_K_M")
     ollama_timeout_seconds: float = float(getenv("OLLAMA_TIMEOUT_SECONDS", "30"))
+    debug_logs: bool = getenv("DEBUG_LOGS", "false").lower() in ("true", "1", "yes")
 
 
 def get_settings() -> Settings:

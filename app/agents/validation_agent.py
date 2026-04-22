@@ -34,6 +34,34 @@ def _build_validation_prompt(extracted_json: dict[str, Any]) -> str:
     )
 
 
+def _validate_with_retry(
+    prompt: str, *, model: str, base_url: str, timeout_seconds: float
+) -> ValidationOutput:
+    error: str | None = None
+    max_attempts = 2
+    for attempt in range(max_attempts):
+        current_prompt = prompt
+        if error:
+            current_prompt = f"Previous response failed validation: {error}\n\n{prompt}"
+            
+        response_text = generate_json_response(
+            base_url=base_url,
+            model=model,
+            prompt=current_prompt,
+            timeout_seconds=timeout_seconds,
+            num_predict=150,
+        )
+        try:
+            payload = json.loads(extract_first_json(response_text))
+            return ValidationOutput.model_validate(payload)
+        except (json.JSONDecodeError, ValueError) as exc:
+            error = str(exc)
+            if attempt + 1 >= max_attempts:
+                break
+
+    raise ValueError(f"Validation output failed format checks after retry: {error}")
+
+
 @traced("validation_agent")
 def validation_agent(state: ApplicationState) -> dict[str, Any]:
     """Validate extracted JSON to ensure critical fields are present."""
@@ -47,15 +75,12 @@ def validation_agent(state: ApplicationState) -> dict[str, Any]:
     prompt = _build_validation_prompt(extracted_json)
     
     try:
-        response_text = generate_json_response(
-            base_url=settings.ollama_base_url,
+        validated = _validate_with_retry(
+            prompt,
             model=settings.validation_model,
-            prompt=prompt,
+            base_url=settings.ollama_base_url,
             timeout_seconds=settings.ollama_timeout_seconds,
         )
-        payload = json.loads(extract_first_json(response_text))
-        validated = ValidationOutput.model_validate(payload)
-        
         is_valid = validated.is_valid
         reason = validated.validation_reason
     except Exception as exc:
