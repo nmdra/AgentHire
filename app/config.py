@@ -20,7 +20,8 @@ class Settings:
     ollama_base_url: str = getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     extraction_model: str = getenv("EXTRACTION_MODEL", "hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M")
     validation_model: str = getenv("VALIDATION_MODEL", "gemma3:1b-it-q4_K_M")
-    ollama_timeout_seconds: float = float(getenv("OLLAMA_TIMEOUT_SECONDS", "30"))
+    ollama_timeout_seconds: float = float(getenv("OLLAMA_TIMEOUT_SECONDS", "120"))
+    ollama_num_ctx: int = int(getenv("OLLAMA_NUM_CTX", "4096"))
     debug_logs: bool = getenv("DEBUG_LOGS", "false").lower() in ("true", "1", "yes")
 
 

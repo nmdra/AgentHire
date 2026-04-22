@@ -54,10 +54,10 @@ def generate_json_response(
     top_p: float = 0.9,
     repeat_penalty: float = 1.1,
     seed: int = 42,
-    num_ctx: int = 2048,
+    num_ctx: int = 4096,
     num_predict: int = 600,
     stop: list[str] | None = None,
-    timeout_seconds: float = 30.0,
+    timeout_seconds: float = 120.0,
 ) -> str:
     """Generate a JSON completion response from a local Ollama model via LangChain.
 
@@ -89,7 +89,7 @@ def generate_json_response(
         ...     base_url="http://localhost:11434",
         ...     model="agenthire-extractor",
         ...     prompt="Alice Perera\\nEmail: alice@example.com",
-        ...     timeout_seconds=30.0,
+        ...     timeout_seconds=120.0,
         ... )
         '{"name": "Alice Perera", ...}'
     """
@@ -108,7 +108,7 @@ def generate_json_response(
         num_predict=num_predict,
         stop=stop,
         format="json",
-        client_kwargs={"timeout": timeout_seconds},
+        timeout=timeout_seconds,
     )
     try:
         logger.info(f"Calling Ollama model: {model} at {base_url}")
