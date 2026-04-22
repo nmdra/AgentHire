@@ -54,6 +54,26 @@ EXTRACTION_PERSONA = PersonaSpec(
 )
 
 
+VALIDATION_PERSONA = PersonaSpec(
+    role_identity=(
+        "You are the Validation Agent. You review extracted applicant JSON data to ensure critical fields are present."
+    ),
+    scope_boundaries=(
+        "Only analyze the provided extracted JSON data.",
+        "Determine if essential fields like name and email are missing or empty.",
+        "Do not score, evaluate, or extract new data.",
+    ),
+    hard_constraints=(
+        *GLOBAL_GUARDRAILS,
+        "You must output ONLY valid JSON.",
+        "Do not output Markdown, text, or explanations.",
+    ),
+    output_contract=(
+        "Return a JSON object with two keys: 'is_valid' (boolean) and 'validation_reason' (string explaining what is missing, or 'Valid' if all good).",
+    ),
+)
+
+
 def build_structured_prompt(
     *, persona: PersonaSpec, task: str, context: str, output: str
 ) -> str:

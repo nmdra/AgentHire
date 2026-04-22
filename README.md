@@ -9,6 +9,7 @@ audit logs, and generates internal/applicant reports.
 - Upload and process application files (`.pdf`, `.txt`, `.md`, `.json`)
 - Run a workflow of specialized agents:
   - extraction
+  - validation
   - evaluation
   - decision
   - report generation
@@ -61,6 +62,7 @@ Settings are loaded from environment variables and `.env` (if present).
 | `MAX_UPLOAD_SIZE_BYTES` | `10485760` | Max upload size (10 MB) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama base URL |
 | `EXTRACTION_MODEL` | `smollm:360m` | Extraction model label |
+| `VALIDATION_MODEL` | `gemma3:1b-it-q4_K_M` | Validation model label |
 | `RESEND_API_KEY` | empty | Resend API key (optional) |
 | `RESEND_FROM_EMAIL` | `noreply@example.com` | Sender email |
 | `RETRY_ATTEMPTS` | `2` | Retries per workflow node |
