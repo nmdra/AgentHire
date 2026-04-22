@@ -19,6 +19,9 @@ from app.database import (
 )
 from app.graph.workflow import build_workflow
 from app.state import ApplicationState
+from app.logger import setup_logger
+
+logger = setup_logger("api")
 
 
 @asynccontextmanager
@@ -37,6 +40,7 @@ workflow = build_workflow()
 
 def _process_application(application_id: str, file_path: str) -> None:
     settings = get_settings()
+    logger.info(f"Starting background workflow processing for application '{application_id}'")
     initial_state: ApplicationState = {
         "application_id": application_id,
         "file_path": file_path,
@@ -46,7 +50,13 @@ def _process_application(application_id: str, file_path: str) -> None:
     }
 
     update_application(settings.db_path, application_id, {"status": "processing", "errors": []})
-    result: dict[str, Any] = workflow.invoke(initial_state)
+    
+    try:
+        result: dict[str, Any] = workflow.invoke(initial_state)
+        logger.info(f"Completed workflow processing for application '{application_id}'")
+    except Exception as exc:
+        logger.error(f"Workflow processing failed for application '{application_id}': {exc}", exc_info=True)
+        return
 
     fields_to_persist = {
         key: result.get(key)
@@ -92,6 +102,7 @@ async def upload(
     background_tasks: BackgroundTasks, file: UploadFile = File(...)
 ) -> dict[str, str]:
     """Upload an application file and start async workflow processing."""
+    logger.info(f"Received upload request for file '{file.filename}'")
     settings = get_settings()
 
     suffix = Path(file.filename or "").suffix.lower()

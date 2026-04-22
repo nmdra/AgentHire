@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from langchain_ollama import OllamaLLM
 
+from app.logger import setup_logger
+
+logger = setup_logger("ollama_tool")
+
 
 class OllamaError(RuntimeError):
     """Raised when an Ollama request fails."""
@@ -107,6 +111,12 @@ def generate_json_response(
         client_kwargs={"timeout": timeout_seconds},
     )
     try:
-        return str(llm.invoke(prompt))
+        logger.info(f"Calling Ollama model: {model} at {base_url}")
+        logger.debug(f"Prompt sent to model:\n{prompt}")
+        response = str(llm.invoke(prompt))
+        logger.debug(f"Response from model:\n{response}")
+        logger.info("Ollama call successful")
+        return response
     except Exception as exc:
+        logger.error(f"Ollama request failed: {exc}", exc_info=True)
         raise OllamaError(f"Ollama request failed: {exc}") from exc
