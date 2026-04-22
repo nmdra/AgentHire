@@ -29,9 +29,11 @@ All LLMs run **locally via Ollama** — no paid LLM API keys.
 uv sync
 
 # Pull required Ollama models (must have Ollama running locally)
-ollama pull smollm:360m
 ollama pull gemma3:1b-it-q4_K_M
 ollama pull phi4-mini:3.8b-q4_K_M
+
+# Build the custom extraction model from the Modelfile
+ollama create agenthire-extractor -f models/extractor.Modelfile
 
 # Copy and configure environment variables
 cp .env.example .env
@@ -104,7 +106,7 @@ Agent orchestration is defined in `app/graph/workflow.py`.
 - Supports PDF (via PyMuPDF), plain text, and JSON inputs.
 - Enforces output against a fixed JSON schema; retries once on validation failure.
 - Persists extracted data to the application record.
-- **Model:** `smollm:360m` · temp `0.0` · format `json`
+- **Model:** `agenthire-extractor` (custom Ollama model built from `models/extractor.Modelfile`) · temp `0.0` · format `json`
 - **Owns state fields:** `extracted_json`
 
 ### Evaluation Agent (`app/agents/evaluation_agent.py`)

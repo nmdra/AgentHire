@@ -158,7 +158,7 @@ def test_extraction_accepts_fenced_json(
     assert call_count["count"] == 1
 
 
-def test_extraction_retries_when_extra_fields_present(
+def test_extraction_ignores_extra_fields_present(
     monkeypatch: pytest.MonkeyPatch, base_state: dict[str, object]
 ) -> None:
     monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
@@ -211,4 +211,4 @@ def test_extraction_retries_when_extra_fields_present(
 
     assert result["status"] == "extracted"
     assert result["extracted_json"]["name"] == "Jane Doe"
-    assert call_count["count"] == 2
+    assert call_count["count"] == 1
