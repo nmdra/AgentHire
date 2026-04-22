@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from langchain.tools import tool
-import pymupdf4llm
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
 
 
 @tool
@@ -29,7 +29,9 @@ def parse_pdf_tool(path: str) -> str:
     if not file_path.exists():
         raise FileNotFoundError(f"File does not exist: {path}")
 
-    text = str(pymupdf4llm.to_markdown(path))
+    loader = PyMuPDF4LLMLoader(path)
+    docs = loader.load()
+    text = "\n\n".join([doc.page_content for doc in docs])
 
     cleaned = text.strip()
     if not cleaned:
