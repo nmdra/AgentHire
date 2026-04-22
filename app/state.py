@@ -16,6 +16,8 @@ class ApplicationState(TypedDict, total=False):
     file_path: str
     status: str
     extracted_json: dict[str, object]
+    is_valid: bool
+    validation_reason: str
     evaluation_score: float
     evaluation_reasoning: str
     decision: Decision
