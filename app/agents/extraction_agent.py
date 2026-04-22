@@ -59,7 +59,7 @@ def _build_extraction_prompt(raw_text: str, correction_error: str | None = None)
 
 
 def _extract_with_retry(
-    raw_text: str, *, model: str, base_url: str, timeout_seconds: float
+    raw_text: str, *, model: str, base_url: str, timeout_seconds: float, num_ctx: int
 ) -> dict[str, Any]:
     error: str | None = None
     max_attempts = 2
@@ -69,6 +69,7 @@ def _extract_with_retry(
             model=model,
             prompt=_build_extraction_prompt(raw_text, correction_error=error),
             timeout_seconds=timeout_seconds,
+            num_ctx=num_ctx,
         )
         try:
             payload = json.loads(extract_first_json(response_text))
@@ -97,6 +98,7 @@ def extraction_agent(state: ApplicationState) -> dict[str, Any]:
         model=settings.extraction_model,
         base_url=settings.ollama_base_url,
         timeout_seconds=settings.ollama_timeout_seconds,
+        num_ctx=settings.ollama_num_ctx,
     )
 
     update_application(

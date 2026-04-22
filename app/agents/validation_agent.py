@@ -22,9 +22,17 @@ class ValidationOutput(BaseModel):
 
 def _build_validation_prompt(extracted_json: dict[str, Any]) -> str:
     """Build the prompt sent to the validation model."""
-    task = "Analyze the extracted JSON and verify that critical fields like 'name' and 'email' are not missing or empty. If missing or empty, mark as invalid."
+    task = (
+        "Perform a strict audit of the following JSON data. "
+        "Apply these RULES:\n"
+        "1. 'name' must be present and not null/empty.\n"
+        "2. 'email' must be present, not null/empty, and follow basic format (contains '@').\n"
+        "3. If either 1 or 2 fail, set 'is_valid' to false.\n"
+        "4. If data is valid, set 'is_valid' to true and 'validation_reason' to 'Valid'.\n"
+        "5. If invalid, provide a specific, concise explanation in 'validation_reason'."
+    )
     context = json.dumps(extracted_json, indent=2)
-    output = "Return a JSON object with 'is_valid' (boolean) and 'validation_reason' (string)."
+    output = "JSON object with 'is_valid' and 'validation_reason'."
     
     return build_structured_prompt(
         persona=VALIDATION_PERSONA,
@@ -35,7 +43,7 @@ def _build_validation_prompt(extracted_json: dict[str, Any]) -> str:
 
 
 def _validate_with_retry(
-    prompt: str, *, model: str, base_url: str, timeout_seconds: float
+    prompt: str, *, model: str, base_url: str, timeout_seconds: float, num_ctx: int
 ) -> ValidationOutput:
     error: str | None = None
     max_attempts = 2
@@ -50,6 +58,8 @@ def _validate_with_retry(
             prompt=current_prompt,
             timeout_seconds=timeout_seconds,
             num_predict=150,
+            num_ctx=num_ctx,
+            temperature=0.0,
         )
         try:
             payload = json.loads(extract_first_json(response_text))
@@ -80,6 +90,7 @@ def validation_agent(state: ApplicationState) -> dict[str, Any]:
             model=settings.validation_model,
             base_url=settings.ollama_base_url,
             timeout_seconds=settings.ollama_timeout_seconds,
+            num_ctx=settings.ollama_num_ctx,
         )
         is_valid = validated.is_valid
         reason = validated.validation_reason
