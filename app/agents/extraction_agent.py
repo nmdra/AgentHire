@@ -38,23 +38,23 @@ def _build_extraction_prompt(raw_text: str, correction_error: str | None = None)
     Formats the prompt according to the NuExtract template.
     """
     text = raw_text[:MAX_INPUT_CHARS]
-    
+
     template = """{
-    "name": "",
-    "email": "",
-    "phone": "",
-    "website": "",
-    "skills": [""],
-    "experience": [{"title": "", "company": "", "duration": ""}],
-    "education": [{"degree": "", "institution": "", "year": ""}],
-    "other_details": [""]
+    "name": null,
+    "email": null,
+    "phone": null,
+    "website": null,
+    "skills": [],
+    "experience": [{"title": null, "company": null, "duration": null}],
+    "education": [{"degree": null, "institution": null, "year": null}],
+    "other_details": []
 }"""
 
     prompt = f"<|input|>\n### Template:\n{template}\n### Text:\n{text}\n\n<|output|>\n"
-    
+
     if correction_error:
         prompt = f"Previous response failed validation: {correction_error}\n\n" + prompt
-        
+
     return prompt
 
 
@@ -73,6 +73,7 @@ def _extract_with_retry(
         )
         try:
             payload = json.loads(extract_first_json(response_text))
+            # Pydantic validators automatically convert "" to None (null)
             validated = CandidateExtraction.model_validate(payload)
             return validated.model_dump()
         except (json.JSONDecodeError, ValidationError) as exc:
