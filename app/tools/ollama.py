@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from langchain_ollama import OllamaLLM
+from langchain_ollama import OllamaLLM, ChatOllama
 
 from app.logger import setup_logger
 
@@ -11,6 +11,21 @@ logger = setup_logger("ollama_tool")
 
 class OllamaError(RuntimeError):
     """Raised when an Ollama request fails."""
+
+
+def get_chat_model(
+    model: str,
+    base_url: str,
+    temperature: float = 0.0,
+    timeout_seconds: float = 120.0,
+) -> ChatOllama:
+    """Return a standard ChatOllama instance for tool-calling and chat."""
+    return ChatOllama(
+        model=model,
+        base_url=base_url,
+        temperature=temperature,
+        timeout=timeout_seconds,
+    )
 
 
 def extract_first_json(text: str) -> str:

@@ -18,7 +18,7 @@ audit logs, and generates internal/applicant reports.
 The workflow involves a series of specialized LLM agents. Here is the current progress of their implementation:
 
 - ✅ **Extraction Agent**: **Completed**. Extracts raw unstructured text from candidate resumes/documents into a strictly typed JSON format using a customized LLM model.
-- ✅ **Validation Agent**: **Completed**. Reviews the extracted JSON output to verify that critical fields (such as `name` and `email`) are present, valid, and not generic placeholders, routing the workflow accordingly.
+- ✅ **Extraction Validation Agent**: **Completed**. Reviews the extracted JSON output to verify that critical fields (such as `name` and `email`) are present and valid. Uses a **Functional Orchestration Pattern** to deterministically send professional email alerts via **Resend** if validation fails.
 - 🚧 **Evaluation Agent**: **Pending** (Currently Mocked). Evaluates the valid extracted candidate data against a scoring rubric.
 - 🚧 **Decision Agent**: **Pending** (Currently Mocked). Makes a final `PASS`, `FAIL`, or `REVIEW` decision based on the evaluation score and parameters.
 - 🚧 **Report Agent**: **Pending** (Currently Mocked). Generates structured Markdown reports for both internal HR use and the applicant.
@@ -43,7 +43,7 @@ AgentHire is built with a modern, asynchronous, and local-first Python stack:
 
 ### Language Models Used
 - **Extraction Model (`hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M`)**: A fine-tuned, extremely lightweight model specifically trained to map unstructured resume text into rigid JSON schema templates.
-- **Validation Model (`gemma3:1b-it-q4_K_M`)**: A lightweight instruct model by Google used for sanity checks and logic verification on the extracted JSON.
+- **Validation Model (`phi4-mini:3.8b-q4_K_M`)**: A lightweight instruct model by Microsoft used for deterministic sanity checks and generating professional notification content.
 
 ---
 
@@ -96,12 +96,13 @@ Settings are loaded from environment variables and `.env` (if present).
 | `MAX_UPLOAD_SIZE_BYTES` | `10485760` | Max upload size (10 MB) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama base URL |
 | `EXTRACTION_MODEL` | `...NuExtract-tiny...` | Extraction model label |
-| `VALIDATION_MODEL` | `gemma3:1b-it-q4_K_M` | Validation model label |
+| `VALIDATION_MODEL` | `phi4-mini:3.8b...` | Validation model label |
 | `OLLAMA_TIMEOUT_SECONDS` | `120` | Timeout for model requests |
 | `OLLAMA_NUM_CTX` | `4096` | Context window size |
 | `DEBUG_LOGS` | `false` | Enable verbose LLM input/output logs |
 | `RESEND_API_KEY` | empty | Resend API key (optional) |
-| `RESEND_FROM_EMAIL` | `noreply@example.com` | Sender email |
+| `RESEND_FROM_EMAIL` | `delivered@resend.dev` | Verified sender email |
+| `REVIEWER_EMAIL` | `your-mail@gmail.com` | Target for audit notifications |
 | `RETRY_ATTEMPTS` | `2` | Retries per workflow node |
 
 ---

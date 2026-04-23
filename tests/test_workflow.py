@@ -10,7 +10,7 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
     candidate_file = tmp_path / "candidate.txt"
     candidate_file.write_text("Test Candidate", encoding="utf-8")
     monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr("app.agents.validation_agent.update_application", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("app.agents.extraction_validation_agent.update_application", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         "app.agents.extraction_agent.generate_json_response",
         lambda **_kwargs: json.dumps(
@@ -27,11 +27,11 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
         ),
     )
     monkeypatch.setattr(
-        "app.agents.validation_agent.generate_json_response",
+        "app.agents.extraction_validation_agent.generate_json_response",
         lambda **_kwargs: json.dumps(
             {
                 "is_valid": True,
-                "validation_reason": "Valid"
+                "reason": "Valid"
             }
         ),
     )

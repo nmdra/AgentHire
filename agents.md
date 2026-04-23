@@ -31,7 +31,7 @@ uv sync
 
 # Pull required Ollama models (must have Ollama running locally)
 ollama pull hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M
-ollama pull gemma3:1b-it-q4_K_M
+ollama pull phi4-mini:3.8b-q4_K_M
 
 # Copy and configure environment variables
 cp .env.example .env
@@ -51,7 +51,7 @@ The workflow follows a sequential path with a conditional quality gate:
 
 1. `extraction_agent`
 2. `route_after_extraction` (Halt if extraction fails)
-3. `validation_agent`
+3. `extraction_validation_agent`
 4. `route_after_validation` (Halt if identity data is missing/placeholder)
 5. `evaluation_agent` (Mocked)
 6. `decision_agent` (Mocked)
@@ -60,7 +60,7 @@ The workflow follows a sequential path with a conditional quality gate:
 
 Pipeline Visualization:
 ```
-START → extract → [gate] → validate → [gate] → evaluate → decide → report → notify → END
+START → extract → [gate] → extraction_validate → [gate] → evaluate → decide → report → notify → END
 ```
 
 ---
@@ -75,13 +75,15 @@ START → extract → [gate] → validate → [gate] → evaluate → decide →
 - **Model:** `NuExtract-tiny` · temp `0.0` · num_ctx `4096`
 - **Owns state fields:** `extracted_json`
 
-### Validation Agent (`app/agents/validation_agent.py`)
+### Extraction Validation Agent (`app/agents/extraction_validation_agent.py`)
 - ✅ **Status:** Completed.
 - Performs a strict data integrity audit on the `extracted_json`.
+- **Functional Orchestration Pattern:** Moves tool-calling logic from the LLM to the system layer. The LLM decides *what* to notify, and Python ensures the notification is sent 100% of the time.
 - **Logic Gate:** Rejects applications where `name` or `email` are `null`, empty, or contain generic placeholders (e.g., "user", "candidate").
-- **Reasoning:** Uses step-by-step logic to ensure deterministic quality checks.
-- **Model:** `gemma3:1b` · temp `0.0` · num_predict `150`
-- **Owns state fields:** `is_valid`, `validation_reason`
+- **Deterministic Notifications:** Automatically sends a professional email via **Resend** (with CV attachment and metadata) if validation fails.
+- **Background Tasks:** Utilizes **FastAPI BackgroundTasks** for non-blocking email delivery.
+- **Model:** `phi4-mini:3.8b` · temp `0.0` · locked JSON template
+- **Owns state fields:** `is_valid`, `reason`
 
 ### Evaluation Agent (`app/agents/evaluation_agent.py`)
 - 🚧 **Status:** Mocked.
