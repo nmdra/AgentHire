@@ -158,6 +158,33 @@ def test_extraction_accepts_fenced_json(
     assert call_count["count"] == 1
 
 
+def test_extraction_uses_heuristic_fallback_for_empty_model_output(
+    monkeypatch: pytest.MonkeyPatch, base_state: dict[str, object]
+) -> None:
+    monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "app.agents.extraction_agent.generate_json_response",
+        lambda **_kwargs: json.dumps(
+            {
+                "name": None,
+                "email": None,
+                "phone": None,
+                "website": None,
+                "skills": [],
+                "experience": [],
+                "education": [],
+                "other_details": [],
+            }
+        ),
+    )
+
+    result = extraction_agent(base_state)
+
+    assert result["status"] == "extracted"
+    assert result["extracted_json"]["name"] == "Jane Doe"
+    assert result["extracted_json"]["email"] == "jane@example.com"
+
+
 def test_extraction_ignores_extra_fields_present(
     monkeypatch: pytest.MonkeyPatch, base_state: dict[str, object]
 ) -> None:

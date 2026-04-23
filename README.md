@@ -117,10 +117,15 @@ Interactive docs: `http://127.0.0.1:8000/docs`
 
 ---
 
-## API guide
+## Public API guide
 
-### 1) Health check
-`curl -s http://127.0.0.1:8000/health`
+Swagger exposes the guide-style application routes:
+
+### 1) Upload only
+```bash
+curl -s -X POST "http://127.0.0.1:8000/applications/upload" \
+  -F "file=@/absolute/path/cv.pdf"
+```
 
 ### 2) Upload + process (background workflow)
 ```bash
@@ -128,9 +133,15 @@ curl -s -X POST "http://127.0.0.1:8000/applications/process" \
   -F "file=@/absolute/path/cv.pdf"
 ```
 
-### 3) Check status & Audit logs
-- Status: `curl -s "http://127.0.0.1:8000/applications/<id>/status"`
-- Logs: `curl -s "http://127.0.0.1:8000/applications/<id>/logs"`
+### 3) Check status
+`curl -s "http://127.0.0.1:8000/applications/<id>/status"`
+
+### 4) Read audit logs
+`curl -s "http://127.0.0.1:8000/applications/<id>/logs"`
+
+Notes:
+- Direct evaluation remains an internal helper for testing code paths, but it is not a public FastAPI route.
+- This keeps Swagger aligned with the documented application workflow.
 
 ---
 

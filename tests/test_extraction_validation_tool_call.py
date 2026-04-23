@@ -68,3 +68,34 @@ def test_validation_with_attachment(mock_exists, mock_resend_send, mock_gen_json
 
 if __name__ == "__main__":
     pytest.main([__file__, "-s"])
+
+
+@patch("app.agents.extraction_validation_agent.update_application")
+@patch("app.agents.extraction_validation_agent.generate_json_response")
+def test_validation_short_circuits_when_name_and_email_are_valid(
+    mock_gen_json, mock_update_app
+):
+    """Valid extracted identity data should not be rejected by model output."""
+    state: ApplicationState = {
+        "application_id": "test-app-id",
+        "file_path": "uploads/cv.txt",
+        "background_tasks": None,
+        "extracted_json": {
+            "name": "Jane Doe",
+            "email": "jane@example.com",
+            "phone": "+94 77 123 4567",
+            "website": "https://janedoe.dev",
+            "skills": ["Python"],
+            "experience": [],
+            "education": [],
+            "other_details": [],
+        },
+        "errors": [],
+    }
+
+    result = extraction_validation_agent(state)
+
+    assert result["status"] == "validated"
+    assert result["is_valid"] is True
+    assert result["errors"] == []
+    assert mock_gen_json.called is False

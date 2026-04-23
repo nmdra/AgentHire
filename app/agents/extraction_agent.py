@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,9 @@ from app.tools.parse_text import parse_text_tool
 from app.tools.validate_extraction import CandidateExtraction
 
 MAX_INPUT_CHARS = 32000
+EMAIL_REGEX = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+URL_REGEX = re.compile(r"https?://\S+")
+YEAR_REGEX = re.compile(r"\b(19|20)\d{2}\b")
 
 
 def _read_input(file_path: str) -> str:
@@ -58,6 +62,112 @@ def _build_extraction_prompt(raw_text: str, correction_error: str | None = None)
     return prompt
 
 
+def _empty_extraction_payload() -> dict[str, Any]:
+    """Return the default structured extraction payload."""
+    return {
+        "name": None,
+        "email": None,
+        "phone": None,
+        "website": None,
+        "skills": [],
+        "experience": [],
+        "education": [],
+        "other_details": [],
+    }
+
+
+def _score_extraction(payload: dict[str, Any]) -> int:
+    """Return a rough completeness score for comparing extraction outputs."""
+    score = 0
+    if payload.get("name"):
+        score += 3
+    if payload.get("email"):
+        score += 3
+    if payload.get("phone"):
+        score += 2
+    if payload.get("website"):
+        score += 2
+    score += min(len(payload.get("skills", [])), 5)
+    score += min(len(payload.get("experience", [])), 3)
+    score += min(len(payload.get("education", [])), 3)
+    return score
+
+
+def _parse_experience_line(value: str) -> dict[str, str | None]:
+    """Parse a simple free-text experience line into structured fields."""
+    value = value.strip()
+    match = re.match(r"(?P<title>.+?)\s+at\s+(?P<company>.+?)\s+for\s+(?P<duration>.+)", value, re.I)
+    if match:
+        return {
+            "title": match.group("title").strip(),
+            "company": match.group("company").strip(),
+            "duration": match.group("duration").strip(),
+        }
+    return {"title": value or None, "company": None, "duration": None}
+
+
+def _parse_education_line(value: str) -> dict[str, str | None]:
+    """Parse a simple free-text education line into structured fields."""
+    value = value.strip()
+    year_match = YEAR_REGEX.search(value)
+    year = year_match.group(0) if year_match else None
+    cleaned = value.replace(year, "").strip(" ,-") if year else value
+    return {"degree": cleaned or None, "institution": None, "year": year}
+
+
+def _heuristic_extract(raw_text: str) -> dict[str, Any]:
+    """Extract common resume fields deterministically from labeled text."""
+    payload = _empty_extraction_payload()
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    if not lines:
+        return payload
+
+    first_line = lines[0].lstrip("\ufeff")
+    if ":" not in first_line and not EMAIL_REGEX.search(first_line):
+        payload["name"] = first_line
+
+    email_match = EMAIL_REGEX.search(raw_text)
+    if email_match:
+        payload["email"] = email_match.group(0)
+
+    website_match = URL_REGEX.search(raw_text)
+    if website_match:
+        payload["website"] = website_match.group(0).rstrip(".,)")
+
+    for line in lines:
+        lowered = line.lower()
+
+        if lowered.startswith("name:") and not payload["name"]:
+            payload["name"] = line.split(":", 1)[1].strip().lstrip("\ufeff") or None
+        elif lowered.startswith("email:") and not payload["email"]:
+            payload["email"] = line.split(":", 1)[1].strip() or None
+        elif lowered.startswith("phone:"):
+            payload["phone"] = line.split(":", 1)[1].strip() or None
+        elif lowered.startswith("website:") and not payload["website"]:
+            payload["website"] = line.split(":", 1)[1].strip() or None
+        elif lowered.startswith("skills:"):
+            skills_text = line.split(":", 1)[1]
+            payload["skills"] = [
+                item.strip()
+                for item in re.split(r"[,;/]", skills_text)
+                if item.strip()
+            ]
+        elif lowered.startswith("experience:"):
+            value = line.split(":", 1)[1].strip()
+            if value:
+                payload["experience"].append(_parse_experience_line(value))
+        elif lowered.startswith("education:"):
+            value = line.split(":", 1)[1].strip()
+            if value:
+                payload["education"].append(_parse_education_line(value))
+        elif lowered.startswith("other details:"):
+            value = line.split(":", 1)[1].strip()
+            if value:
+                payload["other_details"].append(value)
+
+    return CandidateExtraction.model_validate(payload).model_dump()
+
+
 def _extract_with_retry(
     raw_text: str, *, model: str, base_url: str, timeout_seconds: float, num_ctx: int
 ) -> dict[str, Any]:
@@ -75,11 +185,19 @@ def _extract_with_retry(
             payload = json.loads(extract_first_json(response_text))
             # Pydantic validators automatically convert "" to None (null)
             validated = CandidateExtraction.model_validate(payload)
-            return validated.model_dump()
+            model_result = validated.model_dump()
+            heuristic_result = _heuristic_extract(raw_text)
+            if _score_extraction(heuristic_result) > _score_extraction(model_result):
+                return heuristic_result
+            return model_result
         except (json.JSONDecodeError, ValidationError) as exc:
             error = str(exc)
             if attempt + 1 >= max_attempts:
                 break
+
+    heuristic_result = _heuristic_extract(raw_text)
+    if _score_extraction(heuristic_result) > 0:
+        return heuristic_result
 
     raise ValueError(f"Extraction output failed validation after retry: {error}")
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -18,6 +19,8 @@ from app.tools.email_tool import send_email_tool
 from app.tools.ollama import extract_first_json, generate_json_response
 
 logger = setup_logger("extraction_validation_agent")
+GENERIC_NAME_VALUES = {"user", "candidate", "unknown", "n/a", "na", "none"}
+EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 class ValidationDecision(BaseModel):
     """The structured decision output from the model."""
@@ -33,6 +36,36 @@ class ValidationDecision(BaseModel):
             return "No specific reason provided."
         return str(v)
 
+
+def _normalize_text(value: object) -> str:
+    """Normalize optional state values for deterministic validation."""
+    if value is None:
+        return ""
+    return str(value).strip().lstrip("\ufeff")
+
+
+def _is_generic_name(name: str) -> bool:
+    """Return true when the extracted name is obviously placeholder text."""
+    lowered = name.lower()
+    if lowered in GENERIC_NAME_VALUES:
+        return True
+    if len(name) < 3:
+        return True
+    if "@" in name:
+        return True
+    return False
+
+
+def _has_real_identity(extracted_json: dict[str, Any]) -> bool:
+    """Check whether the extracted payload has a real name and email."""
+    name = _normalize_text(extracted_json.get("name"))
+    email = _normalize_text(extracted_json.get("email"))
+    if not name or _is_generic_name(name):
+        return False
+    if not email or not EMAIL_REGEX.match(email):
+        return False
+    return True
+
 @traced("extraction_validation_agent")
 def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
     """Audit extraction and execute notifications deterministically."""
@@ -43,6 +76,31 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
         raise ValueError("application_id and extracted_json are required in state")
 
     settings = get_settings()
+
+    if not isinstance(extracted_json, dict):
+        raise ValueError("extracted_json must be a dictionary")
+
+    # Guard valid extractions deterministically so the model cannot falsely reject them.
+    if _has_real_identity(extracted_json):
+        decision = ValidationDecision(
+            is_valid=True,
+            reason="Name and email are present and appear valid.",
+        )
+        status = "validated"
+        update_application(
+            settings.db_path,
+            application_id,
+            {
+                "status": status,
+                "errors": state.get("errors", []),
+            },
+        )
+        return {
+            "status": status,
+            "is_valid": True,
+            "validation_reason": decision.reason,
+            "errors": [],
+        }
     
     # 1. Build a strict template-based prompt
     task = (

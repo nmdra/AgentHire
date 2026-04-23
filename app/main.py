@@ -189,7 +189,6 @@ async def _parse_optional_rubric_upload(rubric: UploadFile | None) -> dict[str, 
     return validated.model_dump()
 
 
-@app.get("/health")
 def health() -> dict[str, str]:
     """Return basic API, database, and Ollama health indicators."""
     settings = get_settings()
@@ -213,7 +212,6 @@ def health() -> dict[str, str]:
     return {"api": "ok", "db": db_status, "ollama": ollama_status}
 
 
-@app.post("/upload")
 @app.post("/applications/upload")
 async def upload(
     background_tasks: BackgroundTasks, file: UploadFile = File(...)
@@ -245,7 +243,6 @@ async def process_application(
 
 
 @app.get("/applications/{application_id}/status")
-@app.get("/{application_id}/status")
 def status(application_id: str) -> dict[str, Any]:
     """Get persisted status for a submitted application."""
     record = get_application_status(get_settings().db_path, application_id)
@@ -263,9 +260,8 @@ def logs(application_id: str) -> list[dict[str, Any]]:
     return get_application_logs(settings.db_path, application_id)
 
 
-@app.post("/evaluate")
 def evaluate(request: DirectEvaluationRequest) -> dict[str, object]:
-    """Evaluate structured extracted data directly without running the full workflow."""
+    """Internal helper for direct evaluation without the full workflow."""
     settings = get_settings()
     try:
         return evaluate_extracted_json(
