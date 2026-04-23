@@ -10,46 +10,15 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.database import update_application
-from app.agents.personas import EXTRACTION_PERSONA, build_structured_prompt
 from app.observability import traced
 from app.state import ApplicationState
-from app.tools.ollama import generate_json_response
+from app.tools.ollama import extract_first_json, generate_json_response
 from app.tools.parse_json import parse_json_tool
 from app.tools.parse_pdf import parse_pdf_tool
 from app.tools.parse_text import parse_text_tool
 from app.tools.validate_extraction import CandidateExtraction
 
 MAX_INPUT_CHARS = 32000
-
-
-def _strip_markdown_json_fences(text: str) -> str:
-    """Strip wrapping markdown JSON fences from model output.
-
-    Args:
-        text: Raw model output that may include fenced JSON.
-
-    Returns:
-        The unfenced JSON string when standard markdown fences are present,
-        otherwise the original trimmed text.
-
-    Example:
-        _strip_markdown_json_fences("```json\\n{\\"name\\": \\"A\\"}\\n```")
-        '{"name": "A"}'
-    """
-    stripped = text.strip()
-    if not stripped.startswith("```"):
-        return stripped
-
-    lines = stripped.splitlines()
-    if not lines:
-        return stripped
-    if lines[-1].strip() != "```":
-        return stripped
-
-    body = lines[1:-1]
-    if lines[0].strip().lower() in {"```json", "```"}:
-        return "\n".join(body).strip()
-    return stripped
 
 
 def _read_input(file_path: str) -> str:
@@ -64,35 +33,33 @@ def _read_input(file_path: str) -> str:
 
 
 def _build_extraction_prompt(raw_text: str, correction_error: str | None = None) -> str:
-    task = (
-        "Extract applicant details from the provided text into the exact structured JSON schema."
-    )
+    """Build the prompt sent to the extraction model.
+
+    Formats the prompt according to the NuExtract template.
+    """
+    text = raw_text[:MAX_INPUT_CHARS]
+
+    template = """{
+    "name": null,
+    "email": null,
+    "phone": null,
+    "website": null,
+    "skills": [],
+    "experience": [{"title": null, "company": null, "duration": null}],
+    "education": [{"degree": null, "institution": null, "year": null}],
+    "other_details": []
+}"""
+
+    prompt = f"<|input|>\n### Template:\n{template}\n### Text:\n{text}\n\n<|output|>\n"
+
     if correction_error:
-        task = f"{task}\nPrevious response failed validation: {correction_error}"
-    context = f"document_text:\n{raw_text[:MAX_INPUT_CHARS]}"
-    output = (
-        "Return JSON only with exactly these keys:\n"
-        '{\n'
-        '  "name": string or null,\n'
-        '  "email": string or null,\n'
-        '  "phone": string or null,\n'
-        '  "website": string or null,\n'
-        '  "skills": [string, ...],\n'
-        '  "experience": [{"title": string or null, "company": string or null, "duration": string or null}, ...],\n'
-        '  "education": [{"degree": string or null, "institution": string or null, "year": string or null}, ...],\n'
-        '  "other_details": [string, ...]\n'
-        '}'
-    )
-    return build_structured_prompt(
-        persona=EXTRACTION_PERSONA,
-        task=task,
-        context=context,
-        output=output,
-    )
+        prompt = f"Previous response failed validation: {correction_error}\n\n" + prompt
+
+    return prompt
 
 
 def _extract_with_retry(
-    raw_text: str, *, model: str, base_url: str, timeout_seconds: float
+    raw_text: str, *, model: str, base_url: str, timeout_seconds: float, num_ctx: int
 ) -> dict[str, Any]:
     error: str | None = None
     max_attempts = 2
@@ -101,12 +68,12 @@ def _extract_with_retry(
             base_url=base_url,
             model=model,
             prompt=_build_extraction_prompt(raw_text, correction_error=error),
-            temperature=0.0,
-            top_p=0.1,
             timeout_seconds=timeout_seconds,
+            num_ctx=num_ctx,
         )
         try:
-            payload = json.loads(_strip_markdown_json_fences(response_text))
+            payload = json.loads(extract_first_json(response_text))
+            # Pydantic validators automatically convert "" to None (null)
             validated = CandidateExtraction.model_validate(payload)
             return validated.model_dump()
         except (json.JSONDecodeError, ValidationError) as exc:
@@ -132,6 +99,7 @@ def extraction_agent(state: ApplicationState) -> dict[str, Any]:
         model=settings.extraction_model,
         base_url=settings.ollama_base_url,
         timeout_seconds=settings.ollama_timeout_seconds,
+        num_ctx=settings.ollama_num_ctx,
     )
 
     update_application(

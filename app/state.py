@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import operator
 from typing import Annotated, Literal, TypedDict
+from fastapi import BackgroundTasks
 
 
 Decision = Literal["PASS", "FAIL", "REVIEW"]
@@ -14,9 +15,12 @@ class ApplicationState(TypedDict, total=False):
 
     application_id: str
     file_path: str
+    background_tasks: BackgroundTasks | None
     status: str
     rubric: dict[str, object]
     extracted_json: dict[str, object]
+    is_valid: bool
+    validation_reason: str
     evaluation_score: float
     evaluation_reasoning: str
     decision: Decision

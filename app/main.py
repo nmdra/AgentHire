@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -25,8 +25,11 @@ from app.database import (
     update_application,
 )
 from app.graph.workflow import build_workflow
+from app.logger import setup_logger
 from app.state import ApplicationState
 from app.tools.load_rubric import validate_rubric_payload
+
+logger = setup_logger("api")
 
 
 @asynccontextmanager
@@ -56,12 +59,22 @@ class DirectEvaluationRequest(BaseModel):
 
 
 def _process_application(
-    application_id: str, file_path: str, rubric: dict[str, object] | None = None
+    application_id: str,
+    file_path: str,
+    *,
+    rubric: dict[str, object] | None = None,
+    background_tasks: BackgroundTasks | None = None,
 ) -> None:
+    """Execute the LangGraph workflow for a saved application file."""
     settings = get_settings()
+    logger.info(
+        f"Starting background workflow processing for application '{application_id}'"
+    )
+
     initial_state: ApplicationState = {
         "application_id": application_id,
         "file_path": file_path,
+        "background_tasks": background_tasks,
         "status": "processing",
         "errors": [],
         "audit_log": [],
@@ -69,8 +82,27 @@ def _process_application(
     if rubric is not None:
         initial_state["rubric"] = rubric
 
-    update_application(settings.db_path, application_id, {"status": "processing", "errors": []})
-    result: dict[str, Any] = workflow.invoke(initial_state)
+    update_application(
+        settings.db_path,
+        application_id,
+        {"status": "processing", "errors": []},
+    )
+
+    try:
+        result: dict[str, Any] = workflow.invoke(initial_state)
+        logger.info(
+            f"Completed workflow processing for application '{application_id}'"
+        )
+    except Exception as exc:
+        logger.exception(
+            f"Workflow processing failed for application '{application_id}': {exc}"
+        )
+        update_application(
+            settings.db_path,
+            application_id,
+            {"status": "failed", "errors": [f"workflow failed: {exc}"]},
+        )
+        return
 
     fields_to_persist = {
         key: result.get(key)
@@ -187,6 +219,7 @@ async def upload(
     background_tasks: BackgroundTasks, file: UploadFile = File(...)
 ) -> dict[str, str]:
     """Upload an application file and start async workflow processing."""
+    logger.info(f"Received upload request for file '{file.filename}'")
     application_id, file_path = await _save_application_upload(file)
     background_tasks.add_task(_process_application, application_id, file_path)
     return {"application_id": application_id, "status": "processing"}
@@ -199,10 +232,15 @@ async def process_application(
     rubric: UploadFile | None = File(default=None),
 ) -> dict[str, str]:
     """Upload an application file and optional rubric, then start processing."""
+    logger.info(f"Received process request for file '{file.filename}'")
     application_id, file_path = await _save_application_upload(file)
     rubric_payload = await _parse_optional_rubric_upload(rubric)
-    background_tasks.add_task(_process_application, application_id, file_path, rubric_payload)
-
+    background_tasks.add_task(
+        _process_application,
+        application_id,
+        file_path,
+        rubric=rubric_payload,
+    )
     return {"application_id": application_id, "status": "processing"}
 
 

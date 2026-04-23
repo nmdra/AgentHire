@@ -9,6 +9,9 @@ from collections.abc import Callable
 from typing import Any
 
 from app.state import ApplicationState
+from app.logger import setup_logger
+
+logger = setup_logger("observability")
 
 
 EMAIL_PATTERN = re.compile(r"([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
@@ -25,17 +28,21 @@ def traced(agent_name: str) -> Callable[[Callable[..., dict[str, Any]]], Callabl
     def decorator(func: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
         @functools.wraps(func)
         def wrapper(state: ApplicationState) -> dict[str, Any]:
+            application_id = state.get("application_id", "unknown")
+            logger.info(f"Agent '{agent_name}' started for application '{application_id}'")
             start = time.perf_counter()
             try:
                 result = func(state)
                 ok = True
                 output_summary = _mask_pii(str(result)[:300])
                 error_msg: str | None = None
+                logger.info(f"Agent '{agent_name}' completed successfully for application '{application_id}'")
             except Exception as exc:  # pragma: no cover - defensive catch
                 ok = False
-                result = {}
+                result = state.copy()
                 output_summary = ""
                 error_msg = str(exc)
+                logger.exception(f"Agent '{agent_name}' failed for application '{application_id}': {exc}")
 
             latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
             entry = {
