@@ -2,9 +2,24 @@
 
 from __future__ import annotations
 
-import os
 import base64
-import resend
+import os
+from typing import Any
+
+try:
+    import resend
+except ImportError:  # pragma: no cover - optional dependency fallback
+    class _EmailsShim:
+        @staticmethod
+        def send(_params: dict[str, Any]) -> dict[str, str]:
+            raise RuntimeError("resend package is not installed")
+
+    class _ResendShim:
+        api_key: str | None = None
+        Emails = _EmailsShim
+
+    resend = _ResendShim()
+
 from langchain.tools import tool
 from pydantic import BaseModel, Field
 
@@ -18,19 +33,21 @@ class EmailInput(BaseModel):
     subject: str = Field(description="The subject of the email")
     body: str = Field(description="The HTML body of the email")
     attachment_path: str | None = Field(None, description="Optional path to a file to attach")
-    metadata: dict | None = Field(None, description="Optional metadata to include in the email body")
+    metadata: dict[str, Any] | None = Field(
+        None, description="Optional metadata to include in the email body"
+    )
 
 @tool("send_email", args_schema=EmailInput)
 def send_email_tool(
-    to_email: str, 
-    subject: str, 
-    body: str, 
+    to_email: str,
+    subject: str,
+    body: str,
     attachment_path: str | None = None,
-    metadata: dict | None = None
+    metadata: dict[str, Any] | None = None,
 ) -> str:
     """Send an email notification via Resend with optional attachments.
-    
-    The validation agent decides the subject and body. 
+
+    The validation agent decides the subject and body.
     Metadata and attachments can be included for context.
     """
     settings = get_settings()
@@ -60,7 +77,6 @@ def send_email_tool(
         if attachment_path and os.path.exists(attachment_path):
             with open(attachment_path, "rb") as f:
                 content = f.read()
-                # official docs recommend base64 encoding for the content field
                 encoded_content = base64.b64encode(content).decode()
                 params["attachments"] = [
                     {

@@ -5,12 +5,24 @@ from __future__ import annotations
 import io
 import re
 from pathlib import Path
-from typing import Any
 
 import pymupdf
-import pymupdf4llm
-import pytesseract
-from PIL import Image
+
+try:
+    import pymupdf4llm
+except ImportError:  # pragma: no cover - optional dependency fallback
+    pymupdf4llm = None
+
+try:
+    import pytesseract
+except ImportError:  # pragma: no cover - optional dependency fallback
+    pytesseract = None
+
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover - optional dependency fallback
+    Image = None
+
 from langchain.tools import tool
 
 from app.logger import setup_logger
@@ -116,6 +128,9 @@ def _is_garbled(text: str) -> bool:
 
 def _ocr_scanned_pdf(doc: pymupdf.Document) -> str:
     """Extract text from scanned PDF using pytesseract OCR."""
+    if pytesseract is None or Image is None:
+        raise RuntimeError("OCR dependencies are not installed")
+
     pages_text = []
     for page in doc:
         mat = pymupdf.Matrix(300 / 72, 300 / 72)
@@ -164,18 +179,20 @@ def parse_pdf_tool(path: str) -> str:
             text = _fix_two_column_layout(doc)
         else:
             logger.info("Single-column layout detected")
-            chunks = pymupdf4llm.to_markdown(
-                path,
-                page_chunks=True,
-                show_toc=False,
-                embed_images=False,
-                table_strategy="lines",
-            )
-            # Support both list of dicts or list of strings depending on pymupdf4llm version
-            if chunks and isinstance(chunks[0], dict):
-                text = "\n\n".join(chunk["text"] for chunk in chunks)
+            if pymupdf4llm is not None:
+                chunks = pymupdf4llm.to_markdown(
+                    path,
+                    page_chunks=True,
+                    show_toc=False,
+                    embed_images=False,
+                    table_strategy="lines",
+                )
+                if chunks and isinstance(chunks[0], dict):
+                    text = "\n\n".join(chunk["text"] for chunk in chunks)
+                else:
+                    text = "\n\n".join(str(c) for c in chunks)
             else:
-                text = "\n\n".join(str(c) for c in chunks)
+                text = "\n\n".join(page.get_text("text") for page in doc)
 
     # Layer 2 cleaning
     text = _clean_ocr_text(text)

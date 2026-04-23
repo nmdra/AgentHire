@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from langchain_ollama import OllamaLLM, ChatOllama
+from typing import Any
+
+import httpx
+
+try:
+    from langchain_ollama import ChatOllama, OllamaLLM
+except ImportError:  # pragma: no cover - optional dependency fallback
+    ChatOllama = None
+    OllamaLLM = None
 
 from app.logger import setup_logger
 
@@ -18,8 +26,11 @@ def get_chat_model(
     base_url: str,
     temperature: float = 0.0,
     timeout_seconds: float = 120.0,
-) -> ChatOllama:
+) -> Any:
     """Return a standard ChatOllama instance for tool-calling and chat."""
+    if ChatOllama is None:
+        raise OllamaError("langchain_ollama is not installed")
+
     return ChatOllama(
         model=model,
         base_url=base_url,
@@ -111,27 +122,88 @@ def generate_json_response(
     if stop is None:
         stop = ["<|end-output|>", "<|endoftext|>"]
 
-    llm = OllamaLLM(
-        model=model,
-        base_url=base_url,
-        temperature=temperature,
-        top_k=top_k,
-        top_p=top_p,
-        repeat_penalty=repeat_penalty,
-        seed=seed,
-        num_ctx=num_ctx,
-        num_predict=num_predict,
-        stop=stop,
-        format="json",
-        timeout=timeout_seconds,
-    )
     try:
         logger.info(f"Calling Ollama model: {model} at {base_url}")
         logger.debug(f"Prompt sent to model:\n{prompt}")
-        response = str(llm.invoke(prompt))
+
+        if OllamaLLM is not None:
+            llm = OllamaLLM(
+                model=model,
+                base_url=base_url,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                repeat_penalty=repeat_penalty,
+                seed=seed,
+                num_ctx=num_ctx,
+                num_predict=num_predict,
+                stop=stop,
+                format="json",
+                timeout=timeout_seconds,
+            )
+            response = str(llm.invoke(prompt))
+        else:
+            response = _generate_with_httpx(
+                base_url=base_url,
+                model=model,
+                prompt=prompt,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                repeat_penalty=repeat_penalty,
+                seed=seed,
+                num_ctx=num_ctx,
+                num_predict=num_predict,
+                stop=stop,
+                timeout_seconds=timeout_seconds,
+            )
+
         logger.debug(f"Response from model:\n{response}")
         logger.info("Ollama call successful")
         return response
     except Exception as exc:
         logger.exception(f"Ollama request failed: {exc}")
         raise OllamaError(f"Ollama request failed: {exc}") from exc
+
+
+def _generate_with_httpx(
+    *,
+    base_url: str,
+    model: str,
+    prompt: str,
+    temperature: float,
+    top_k: int,
+    top_p: float,
+    repeat_penalty: float,
+    seed: int,
+    num_ctx: int,
+    num_predict: int,
+    stop: list[str],
+    timeout_seconds: float,
+) -> str:
+    """Fallback Ollama client using direct HTTP calls."""
+    response = httpx.post(
+        f"{base_url.rstrip('/')}/api/generate",
+        json={
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": temperature,
+                "top_k": top_k,
+                "top_p": top_p,
+                "repeat_penalty": repeat_penalty,
+                "seed": seed,
+                "num_ctx": num_ctx,
+                "num_predict": num_predict,
+                "stop": stop,
+            },
+        },
+        timeout=timeout_seconds,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if "response" not in payload:
+        raise OllamaError("Ollama response payload did not include a 'response' field")
+    return str(payload["response"])
