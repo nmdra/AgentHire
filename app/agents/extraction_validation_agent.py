@@ -89,7 +89,7 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
         
         # 3. Deterministic Action (Python Execution)
         if not decision.is_valid:
-            logger.info("EXTRACTION NOTIFY: Validation failed. Executing deterministic tool call.")
+            logger.info("EXTRACTION NOTIFY: Validation failed. Triggering notification.")
             
             # Prepare metadata for the email
             email_metadata = {
@@ -98,25 +98,40 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
                 "Validation Reason": decision.reason
             }
             
-            send_email_tool.invoke({
+            email_params = {
                 "to_email": settings.reviewer_email,
                 "subject": decision.email_subject or f"Validation Alert: {application_id}",
                 "body": decision.email_body or f"<p>Validation failed for application {application_id}.</p>",
                 "attachment_path": state.get("file_path"),
                 "metadata": email_metadata
-            })
+            }
+            
+            # Utilize FastAPI BackgroundTasks if available
+            bt = state.get("background_tasks")
+            if bt:
+                logger.info("Queuing email via FastAPI BackgroundTasks.")
+                bt.add_task(send_email_tool.invoke, email_params)
+            else:
+                logger.info("Executing email tool synchronously (no BackgroundTasks in state).")
+                send_email_tool.invoke(email_params)
             
     except Exception as exc:
         logger.error(f"Validation Agent Error: {exc}")
         decision = ValidationDecision(is_valid=False, reason=f"System error: {exc}")
         # Enforce safety email on system error
         try:
-            send_email_tool.invoke({
+            email_params = {
                 "to_email": settings.reviewer_email,
                 "subject": "System Error: Extraction Validation",
                 "body": f"An error occurred while validating application {application_id}: {exc}",
                 "attachment_path": state.get("file_path")
-            })
+            }
+            
+            bt = state.get("background_tasks")
+            if bt:
+                bt.add_task(send_email_tool.invoke, email_params)
+            else:
+                send_email_tool.invoke(email_params)
         except Exception as e2:
             logger.error(f"Failed to send error notification email: {e2}")
 

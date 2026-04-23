@@ -38,12 +38,13 @@ app = FastAPI(title="AgentHire Phase 1", lifespan=lifespan)
 workflow = build_workflow()
 
 
-def _process_application(application_id: str, file_path: str) -> None:
+def _process_application(application_id: str, file_path: str, background_tasks: BackgroundTasks | None = None) -> None:
     settings = get_settings()
     logger.info(f"Starting background workflow processing for application '{application_id}'")
     initial_state: ApplicationState = {
         "application_id": application_id,
         "file_path": file_path,
+        "background_tasks": background_tasks,
         "status": "processing",
         "errors": [],
         "audit_log": [],
@@ -119,7 +120,7 @@ async def upload(
 
     application_id = create_application(settings.db_path, temp_name, str(save_path))
 
-    background_tasks.add_task(_process_application, application_id, str(save_path))
+    background_tasks.add_task(_process_application, application_id, str(save_path), background_tasks)
 
     return {"application_id": application_id, "status": "processing"}
 

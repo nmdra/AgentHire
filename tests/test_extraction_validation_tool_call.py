@@ -36,6 +36,7 @@ def test_validation_with_attachment(mock_exists, mock_resend_send, mock_gen_json
     state: ApplicationState = {
         "application_id": "test-app-id",
         "file_path": "uploads/cv.pdf",
+        "background_tasks": None,
         "extracted_json": {"name": None, "email": "test@example.com"},
         "errors": []
     }
