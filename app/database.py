@@ -169,3 +169,31 @@ def get_application_status(db_path: str, application_id: str) -> dict[str, Any] 
     if data.get("errors"):
         data["errors"] = json.loads(data["errors"])
     return data
+
+
+def get_application_logs(db_path: str, application_id: str) -> list[dict[str, Any]]:
+    """Return audit log rows for a specific application.
+
+    Args:
+        db_path: Path to the SQLite database file.
+        application_id: Application identifier whose logs should be returned.
+
+    Returns:
+        Ordered audit log entries as plain dictionaries.
+
+    Example:
+        get_application_logs("agenthire.db", "app-123")
+    """
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, application_id, agent_name, tool_name, input_summary,
+                   output_summary, latency_ms, created_at
+            FROM audit_log
+            WHERE application_id = ?
+            ORDER BY id
+            """,
+            (application_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]

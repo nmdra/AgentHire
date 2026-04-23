@@ -1,0 +1,6 @@
+﻿Jane Doe
+Email: jane@example.com
+Phone: +94 77 123 4567
+Skills: Python, FastAPI, SQLite
+Experience: Backend Engineer at Acme for 3 years
+Education: BSc Computer Science

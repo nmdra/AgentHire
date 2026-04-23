@@ -15,6 +15,7 @@ class ApplicationState(TypedDict, total=False):
     application_id: str
     file_path: str
     status: str
+    rubric: dict[str, object]
     extracted_json: dict[str, object]
     evaluation_score: float
     evaluation_reasoning: str

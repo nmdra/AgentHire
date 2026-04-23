@@ -2,23 +2,31 @@
 
 from __future__ import annotations
 
+import json
+import sqlite3
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from pydantic import BaseModel, Field
 
+from app.agents.evaluation_agent import evaluate_extracted_json
 from app.config import get_settings
 from app.database import (
     create_application,
+    get_application_logs,
     get_application_status,
+    get_connection,
     init_database,
     insert_audit_entries,
     update_application,
 )
 from app.graph.workflow import build_workflow
 from app.state import ApplicationState
+from app.tools.load_rubric import validate_rubric_payload
 
 
 @asynccontextmanager
@@ -35,7 +43,21 @@ app = FastAPI(title="AgentHire Phase 1", lifespan=lifespan)
 workflow = build_workflow()
 
 
-def _process_application(application_id: str, file_path: str) -> None:
+class DirectEvaluationRequest(BaseModel):
+    """Request payload for direct evaluation API testing."""
+
+    extracted_json: dict[str, object] = Field(
+        description="Structured applicant data produced by the extraction stage."
+    )
+    rubric: dict[str, object] | None = Field(
+        default=None,
+        description="Optional rubric override; defaults to the configured rubric file.",
+    )
+
+
+def _process_application(
+    application_id: str, file_path: str, rubric: dict[str, object] | None = None
+) -> None:
     settings = get_settings()
     initial_state: ApplicationState = {
         "application_id": application_id,
@@ -44,6 +66,8 @@ def _process_application(application_id: str, file_path: str) -> None:
         "errors": [],
         "audit_log": [],
     }
+    if rubric is not None:
+        initial_state["rubric"] = rubric
 
     update_application(settings.db_path, application_id, {"status": "processing", "errors": []})
     result: dict[str, Any] = workflow.invoke(initial_state)
@@ -87,32 +111,102 @@ async def _read_upload_with_limit(
     return b"".join(chunks)
 
 
+def _ensure_supported_application_suffix(file_name: str) -> None:
+    """Validate the uploaded application suffix."""
+    suffix = Path(file_name).suffix.lower()
+    if suffix not in {".pdf", ".txt", ".md", ".json"}:
+        raise HTTPException(status_code=400, detail="Only PDF/TXT/MD/JSON files are supported")
+
+
+async def _save_application_upload(file: UploadFile) -> tuple[str, str]:
+    """Persist an uploaded application file and return identifiers."""
+    settings = get_settings()
+    file_name = file.filename or "application.txt"
+    _ensure_supported_application_suffix(file_name)
+
+    payload = await _read_upload_with_limit(file, max_size_bytes=settings.max_upload_size_bytes)
+    save_path = Path(settings.uploads_dir) / file_name
+    save_path.write_bytes(payload)
+    application_id = create_application(settings.db_path, file_name, str(save_path))
+    return application_id, str(save_path)
+
+
+async def _parse_optional_rubric_upload(rubric: UploadFile | None) -> dict[str, object] | None:
+    """Read and validate an optional rubric upload."""
+    if rubric is None:
+        return None
+
+    rubric_name = rubric.filename or "rubric.json"
+    if Path(rubric_name).suffix.lower() != ".json":
+        raise HTTPException(status_code=400, detail="Rubric file must be a JSON document")
+
+    settings = get_settings()
+    payload = await _read_upload_with_limit(rubric, max_size_bytes=settings.max_upload_size_bytes)
+    try:
+        parsed_payload = json.loads(payload.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Rubric file must be UTF-8 encoded") from exc
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Rubric file is not valid JSON") from exc
+
+    try:
+        validated = validate_rubric_payload(parsed_payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return validated.model_dump()
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    """Return basic API, database, and Ollama health indicators."""
+    settings = get_settings()
+
+    try:
+        with get_connection(settings.db_path) as conn:
+            conn.execute("SELECT 1").fetchone()
+        db_status = "ok"
+    except sqlite3.Error:
+        db_status = "down"
+
+    try:
+        response = httpx.get(
+            f"{settings.ollama_base_url.rstrip('/')}/api/tags",
+            timeout=settings.ollama_timeout_seconds,
+        )
+        ollama_status = "ok" if response.is_success else "down"
+    except httpx.HTTPError:
+        ollama_status = "down"
+
+    return {"api": "ok", "db": db_status, "ollama": ollama_status}
+
+
 @app.post("/upload")
+@app.post("/applications/upload")
 async def upload(
     background_tasks: BackgroundTasks, file: UploadFile = File(...)
 ) -> dict[str, str]:
     """Upload an application file and start async workflow processing."""
-    settings = get_settings()
+    application_id, file_path = await _save_application_upload(file)
+    background_tasks.add_task(_process_application, application_id, file_path)
+    return {"application_id": application_id, "status": "processing"}
 
-    suffix = Path(file.filename or "").suffix.lower()
-    if suffix not in {".pdf", ".txt", ".md", ".json"}:
-        raise HTTPException(status_code=400, detail="Only PDF/TXT/MD/JSON files are supported")
 
-    payload = await _read_upload_with_limit(
-        file, max_size_bytes=settings.max_upload_size_bytes
-    )
-
-    temp_name = file.filename or "application.txt"
-    save_path = Path(settings.uploads_dir) / temp_name
-    save_path.write_bytes(payload)
-
-    application_id = create_application(settings.db_path, temp_name, str(save_path))
-
-    background_tasks.add_task(_process_application, application_id, str(save_path))
+@app.post("/applications/process")
+async def process_application(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    rubric: UploadFile | None = File(default=None),
+) -> dict[str, str]:
+    """Upload an application file and optional rubric, then start processing."""
+    application_id, file_path = await _save_application_upload(file)
+    rubric_payload = await _parse_optional_rubric_upload(rubric)
+    background_tasks.add_task(_process_application, application_id, file_path, rubric_payload)
 
     return {"application_id": application_id, "status": "processing"}
 
 
+@app.get("/applications/{application_id}/status")
 @app.get("/{application_id}/status")
 def status(application_id: str) -> dict[str, Any]:
     """Get persisted status for a submitted application."""
@@ -120,3 +214,26 @@ def status(application_id: str) -> dict[str, Any]:
     if record is None:
         raise HTTPException(status_code=404, detail="Application not found")
     return record
+
+
+@app.get("/applications/{application_id}/logs")
+def logs(application_id: str) -> list[dict[str, Any]]:
+    """Return ordered audit logs for a submitted application."""
+    settings = get_settings()
+    if get_application_status(settings.db_path, application_id) is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return get_application_logs(settings.db_path, application_id)
+
+
+@app.post("/evaluate")
+def evaluate(request: DirectEvaluationRequest) -> dict[str, object]:
+    """Evaluate structured extracted data directly without running the full workflow."""
+    settings = get_settings()
+    try:
+        return evaluate_extracted_json(
+            request.extracted_json,
+            rubric=request.rubric,
+            settings=settings,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
