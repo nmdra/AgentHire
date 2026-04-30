@@ -77,7 +77,7 @@ def load_rubric_tool(path: str) -> dict[str, object]:
         ValueError: If the file is not valid JSON or does not match the rubric schema.
 
     Example:
-        load_rubric_tool.invoke({"path": "rubrics/default_rubric.json"})
+        load_rubric_tool.invoke({"path": "data/default_rubric.json"})
     """
     rubric_path = Path(path)
     if not rubric_path.exists():

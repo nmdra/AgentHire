@@ -53,7 +53,7 @@ def base_state(strong_candidate: dict[str, object]) -> dict[str, object]:
 
 
 def test_load_rubric_tool_reads_default_rubric() -> None:
-    rubric = load_rubric_tool.invoke({"path": "rubrics/default_rubric.json"})
+    rubric = load_rubric_tool.invoke({"path": "data/default_rubric.json"})
 
     assert "criteria" in rubric
     assert len(rubric["criteria"]) == 4
@@ -64,7 +64,7 @@ def test_load_rubric_tool_reads_default_rubric() -> None:
 def test_score_against_rubric_returns_weighted_total(
     strong_candidate: dict[str, object],
 ) -> None:
-    rubric = load_rubric_tool.invoke({"path": "rubrics/default_rubric.json"})
+    rubric = load_rubric_tool.invoke({"path": "data/default_rubric.json"})
 
     result = score_against_rubric_tool.invoke(
         {"extracted_json": strong_candidate, "rubric": rubric}
@@ -104,7 +104,7 @@ def test_evaluation_agent_generates_model_backed_reasoning(
         "app.agents.evaluation_agent.get_settings",
         lambda: SimpleNamespace(
             db_path="agenthire.db",
-            default_rubric_path="rubrics/default_rubric.json",
+            default_rubric_path="data/default_rubric.json",
             evaluation_model="gemma3:1b-it-q4_K_M",
             ollama_base_url="http://localhost:11434",
             ollama_timeout_seconds=30.0,
@@ -140,7 +140,7 @@ def test_evaluation_agent_falls_back_when_model_output_is_invalid(
         "app.agents.evaluation_agent.get_settings",
         lambda: SimpleNamespace(
             db_path="agenthire.db",
-            default_rubric_path="rubrics/default_rubric.json",
+            default_rubric_path="data/default_rubric.json",
             evaluation_model="gemma3:1b-it-q4_K_M",
             ollama_base_url="http://localhost:11434",
             ollama_timeout_seconds=30.0,
@@ -169,7 +169,7 @@ def test_evaluation_agent_is_idempotent_for_same_state(
         "app.agents.evaluation_agent.get_settings",
         lambda: SimpleNamespace(
             db_path="agenthire.db",
-            default_rubric_path="rubrics/default_rubric.json",
+            default_rubric_path="data/default_rubric.json",
             evaluation_model="gemma3:1b-it-q4_K_M",
             ollama_base_url="http://localhost:11434",
             ollama_timeout_seconds=30.0,
