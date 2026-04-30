@@ -153,3 +153,23 @@ python -m ruff check .
 python -m mypy app
 python -m pytest -q
 ```
+
+---
+
+## Agent Evaluation Framework
+
+AgentHire includes a specialized evaluation suite to validate agent accuracy and security (e.g., preventing prompt injections).
+
+### Features
+- **LLM-as-a-Judge**: Uses a secondary model (defined by `EVALUATION_MODEL`) to score extractions against ground truth.
+- **Security Validation**: Specifically tests for prompt injection resistance and instruction leakage.
+- **Property-Based Checks**: Validates JSON structure, PII formats (email regex), and data types.
+
+### Running Evaluations
+Ensure Ollama is running, then use `uv` to execute the suite:
+```bash
+uv run python evals/run_eval.py
+```
+
+Results are saved to `evals/results.json` for detailed inspection.
+
