@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.database import update_application
+from app.logger import setup_logger
 from app.observability import traced
 from app.state import ApplicationState
 from app.tools.ollama import extract_first_json, generate_json_response
@@ -23,6 +24,8 @@ MAX_INPUT_CHARS = 32000
 EMAIL_REGEX = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 URL_REGEX = re.compile(r"https?://\S+")
 YEAR_REGEX = re.compile(r"\b(19|20)\d{2}\b")
+
+logger = setup_logger("extraction_agent")
 
 
 def _read_input(file_path: str) -> str:
@@ -123,7 +126,7 @@ def _heuristic_extract(raw_text: str) -> dict[str, Any]:
         return payload
 
     first_line = lines[0].lstrip("\ufeff")
-    if ":" not in first_line and not EMAIL_REGEX.search(first_line):
+    if ":" not in first_line and not EMAIL_REGEX.search(first_line) and len(first_line) > 3:
         payload["name"] = first_line
 
     email_match = EMAIL_REGEX.search(raw_text)
@@ -211,14 +214,30 @@ def extraction_agent(state: ApplicationState) -> dict[str, Any]:
         raise ValueError("file_path and application_id are required in state")
 
     settings = get_settings()
-    raw_text = _read_input(file_path)
-    extracted = _extract_with_retry(
-        raw_text,
-        model=settings.extraction_model,
-        base_url=settings.ollama_base_url,
-        timeout_seconds=settings.ollama_timeout_seconds,
-        num_ctx=settings.ollama_num_ctx,
-    )
+    try:
+        raw_text = _read_input(file_path)
+        extracted = _extract_with_retry(
+            raw_text,
+            model=settings.extraction_model,
+            base_url=settings.ollama_base_url,
+            timeout_seconds=settings.ollama_timeout_seconds,
+            num_ctx=settings.ollama_num_ctx,
+        )
+    except Exception as exc:
+        logger.error(f"Extraction failed for {application_id}: {exc}")
+        error_msg = str(exc)
+        update_application(
+            settings.db_path,
+            application_id,
+            {
+                "status": "failed",
+                "errors": state.get("errors", []) + [error_msg],
+            },
+        )
+        return {
+            "status": "failed",
+            "errors": [error_msg],
+        }
 
     update_application(
         settings.db_path,

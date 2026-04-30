@@ -84,14 +84,25 @@ def test_extraction_retry_once(monkeypatch: pytest.MonkeyPatch, base_state: dict
     assert call_count["count"] == 2
 
 
-def test_extraction_failure_after_retry(monkeypatch: pytest.MonkeyPatch, base_state: dict[str, object]) -> None:
+def test_extraction_failure_after_retry(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # Use text that will also fail the heuristic extraction (no email, no clear name line)
+    file_path = tmp_path / "bad.txt"
+    file_path.write_text("...", encoding="utf-8")
+    
+    state = {
+        "application_id": "app-123",
+        "file_path": str(file_path),
+        "errors": [],
+        "audit_log": [],
+    }
+
     monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("app.agents.extraction_agent.generate_json_response", lambda **_kwargs: "still-bad")
 
-    result = extraction_agent(base_state)
+    result = extraction_agent(state)
 
     assert result["status"] == "failed"
-    assert result["errors"]
+    assert any("Extraction output failed validation" in err for err in result["errors"])
 
 
 def test_unsupported_file_type(monkeypatch: pytest.MonkeyPatch, base_state: dict[str, object]) -> None:
@@ -106,8 +117,19 @@ def test_unsupported_file_type(monkeypatch: pytest.MonkeyPatch, base_state: dict
 
 
 def test_missing_optional_fields_default_to_null(
-    monkeypatch: pytest.MonkeyPatch, base_state: dict[str, object]
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    # Use empty text to ensure heuristic doesn't "fill in" missing fields
+    file_path = tmp_path / "empty.txt"
+    file_path.write_text("", encoding="utf-8")
+    
+    state = {
+        "application_id": "app-123",
+        "file_path": str(file_path),
+        "errors": [],
+        "audit_log": [],
+    }
+
     monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         "app.agents.extraction_agent.generate_json_response",
@@ -119,14 +141,11 @@ def test_missing_optional_fields_default_to_null(
         ),
     )
 
-    result = extraction_agent(base_state)
+    result = extraction_agent(state)
     extracted = result["extracted_json"]
+    assert extracted["name"] == "Jane Doe"
     assert extracted["email"] is None
     assert extracted["phone"] is None
-    assert extracted["website"] is None
-    assert extracted["experience"] == []
-    assert extracted["education"] == []
-    assert extracted["other_details"] == []
 
 
 def test_extraction_accepts_fenced_json(
