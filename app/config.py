@@ -27,7 +27,7 @@ class Settings:
     ollama_timeout_seconds: float = float(getenv("OLLAMA_TIMEOUT_SECONDS", "120"))
     ollama_num_ctx: int = int(getenv("OLLAMA_NUM_CTX", "4096"))
     default_rubric_path: str = getenv(
-        "DEFAULT_RUBRIC_PATH", "rubrics/default_rubric.json"
+        "DEFAULT_RUBRIC_PATH", "data/default_rubric.json"
     )
     debug_logs: bool = getenv("DEBUG_LOGS", "false").lower() in ("true", "1", "yes")
 

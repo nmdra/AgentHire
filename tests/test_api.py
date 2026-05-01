@@ -28,7 +28,7 @@ def _build_settings(base_dir: Path) -> SimpleNamespace:
         extraction_model="smollm:360m",
         evaluation_model="gemma3:1b-it-q4_K_M",
         ollama_timeout_seconds=30.0,
-        default_rubric_path=str((Path.cwd() / "rubrics" / "default_rubric.json").resolve()),
+        default_rubric_path=str((Path.cwd() / "data" / "default_rubric.json").resolve()),
     )
     init_database(settings.db_path)
     return settings
