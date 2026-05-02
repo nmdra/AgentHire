@@ -17,14 +17,19 @@ def _validate_score(score: float) -> float:
     return score
 
 
-def _validate_thresholds(pass_threshold: float, review_threshold: float) -> tuple[float, float]:
+def _validate_thresholds(
+    pass_threshold: float,
+    review_threshold: float,
+) -> tuple[float, float]:
     """Validate threshold ranges and ordering."""
     if not 0.0 <= pass_threshold <= 100.0:
         raise ValueError("pass_threshold must be between 0 and 100")
     if not 0.0 <= review_threshold <= 100.0:
         raise ValueError("review_threshold must be between 0 and 100")
     if pass_threshold < review_threshold:
-        raise ValueError("pass_threshold must be greater than or equal to review_threshold")
+        raise ValueError(
+            "pass_threshold must be greater than or equal to review_threshold"
+        )
     return pass_threshold, review_threshold
 
 
