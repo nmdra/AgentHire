@@ -29,6 +29,14 @@ def _is_valid_email(address: str) -> bool:
     """Return True when the address looks like a valid email address."""
     return bool(EMAIL_PATTERN.fullmatch(address.strip()))
 
+def _load_template(decision: str) -> str:
+    """Load the body template for a decision branch."""
+    template_name = TEMPLATE_FILENAMES.get(decision, TEMPLATE_FILENAMES["REVIEW"])
+    template_path = _templates_dir() / template_name
+    if not template_path.exists():
+        raise FileNotFoundError(f"Missing notification template: {template_path}")
+    return template_path.read_text(encoding="utf-8")
+
 @traced("notification_agent")
 def notification_agent(state: ApplicationState) -> dict[str, object]:
     """Send the decision email and persist the notification outcome."""
