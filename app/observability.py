@@ -38,10 +38,19 @@ def traced(agent_name: str) -> Callable[[Callable[..., dict[str, Any]]], Callabl
                 error_msg = str(exc)
 
             latency_ms = round((time.perf_counter() - start) * 1000.0, 2)
+            extracted = state.get("extracted_json") if isinstance(state.get("extracted_json"), dict) else {}
             entry = {
                 "agent_name": agent_name,
                 "tool_name": func.__name__,
-                "input_summary": _mask_pii(str({"application_id": state.get("application_id")})[:300]),
+                "input_summary": _mask_pii(
+                    str(
+                        {
+                            "application_id": state.get("application_id"),
+                            "decision": state.get("decision"),
+                            "recipient_email": extracted.get("email") if isinstance(extracted, dict) else None,
+                        }
+                    )[:300]
+                ),
                 "output_summary": output_summary,
                 "latency_ms": latency_ms,
                 "ok": ok,

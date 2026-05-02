@@ -26,6 +26,7 @@ def _summarize_candidate(state: ApplicationState) -> str:
     ]
     return "\n".join(parts)
 
+
 def _build_applicant_report(state: ApplicationState) -> str:
     """Create the applicant-facing report body."""
     decision = state.get("decision", "REVIEW")
@@ -48,6 +49,7 @@ def _build_applicant_report(state: ApplicationState) -> str:
             "Thank you for submitting your application.",
         ]
     )
+
 
 def _build_internal_report(state: ApplicationState) -> str:
     """Create the internal markdown report body."""
@@ -88,6 +90,7 @@ def _build_internal_report(state: ApplicationState) -> str:
         ]
     )
 
+
 def _write_report(directory: str, file_name: str, content: str) -> Path:
     """Write a markdown report to disk and return the path."""
     report_dir = Path(directory)
@@ -112,4 +115,4 @@ def report_agent(state: ApplicationState) -> dict[str, object]:
         "status": "reported",
         "report_applicant": applicant_report,
         "report_internal": internal_report,
-}
+    }
