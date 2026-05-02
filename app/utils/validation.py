@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from pydantic import EmailStr
+
+# Fallback simple regex in case EmailStr validation environment behaves unexpectedly
+_SIMPLE_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 
 def is_valid_email(address: str) -> bool:
@@ -20,4 +24,5 @@ def is_valid_email(address: str) -> bool:
         EmailStr(addr)
         return True
     except Exception:
-        return False
+        # Fall back to a simple regex match for environments where EmailStr may be strict
+        return bool(_SIMPLE_EMAIL_RE.fullmatch(addr))
