@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from app.config import get_settings
+from app.logger import setup_logger
 from app.observability import traced
 from app.state import ApplicationState
 from app.tools.decision_explanation import generate_decision_explanation
@@ -14,6 +15,8 @@ from app.tools.decision_rules import (
     decision_rules_tool,
 )
 from app.tools.load_rubric import load_rubric_tool
+
+logger = setup_logger("decision_agent")
 
 
 def _word_count(text: str) -> int:
@@ -206,7 +209,8 @@ def decision_agent(state: ApplicationState) -> dict[str, object]:
             deterministic_reason=decision_reason,
             evaluation_reasoning=reasoning_summary,
         )
-    except Exception:
+    except Exception as exc:
+        logger.debug("generate_decision_explanation raised unexpectedly: {}", exc)
         explanation = None
     if _is_safe_explanation(explanation, decision):
         llm_reason = explanation["decision_reason"]
