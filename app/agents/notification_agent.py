@@ -25,7 +25,9 @@ def _templates_dir() -> Path:
     """Return the root templates directory."""
     return Path(__file__).resolve().parents[2] / "templates"
 
-
+def _is_valid_email(address: str) -> bool:
+    """Return True when the address looks like a valid email address."""
+    return bool(EMAIL_PATTERN.fullmatch(address.strip()))
 
 @traced("notification_agent")
 def notification_agent(state: ApplicationState) -> dict[str, object]:
