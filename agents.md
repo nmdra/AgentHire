@@ -97,8 +97,8 @@ START → extract → [gate] → extraction_validate → [gate] → evaluate →
 ### Decision Agent (`app/agents/decision_agent.py`)
 - ✅ **Status:** Completed.
 - Receives `evaluation_score`, `evaluation_reasoning`, `pass_threshold`, and `review_threshold` from the Evaluation Agent through shared LangGraph state.
-- Does not call an LLM or re-evaluate the candidate.
-- Uses the custom `decision_rules_tool` from `app/tools/decision_rules.py`.
+- Uses the custom `decision_rules_tool` from `app/tools/decision_rules.py` to make the decision deterministically; it does not use an LLM to decide PASS / REVIEW / FAIL and does not re-evaluate the candidate.
+- May optionally call a local Ollama model via `DECISION_MODEL` to append a human-readable decision explanation; this explanation does not affect the decision outcome.
 - Applies deterministic threshold rules:
   - `score >= pass_threshold` → `PASS`
   - `review_threshold <= score < pass_threshold` → `REVIEW`
