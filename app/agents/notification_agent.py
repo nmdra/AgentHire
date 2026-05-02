@@ -48,6 +48,17 @@ def _build_subject(decision: str, candidate_name: str | None) -> str:
         return f"{base} - {candidate_name}"
     return base
 
+def _render_body(state: ApplicationState, decision: str) -> str:
+    """Render a decision-specific body from the Jinja2 template."""
+    extracted = state.get("extracted_json") or {}
+    candidate_name = extracted.get("name") if isinstance(extracted, dict) else None
+    template_text = _load_template(decision)
+    return Template(template_text).render(
+        name=candidate_name or "there",
+        application_id=state.get("application_id", "unknown"),
+        decision=decision,
+    )
+
 @traced("notification_agent")
 def notification_agent(state: ApplicationState) -> dict[str, object]:
     """Send the decision email and persist the notification outcome."""
