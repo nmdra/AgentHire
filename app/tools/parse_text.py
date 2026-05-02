@@ -26,4 +26,4 @@ def parse_text_tool(path: str) -> str:
     file_path = Path(path)
     if not file_path.exists():
         raise FileNotFoundError(f"File does not exist: {path}")
-    return file_path.read_text(encoding="utf-8")
+    return file_path.read_text(encoding="utf-8-sig")
