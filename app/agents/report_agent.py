@@ -88,6 +88,14 @@ def _build_internal_report(state: ApplicationState) -> str:
         ]
     )
 
+def _write_report(directory: str, file_name: str, content: str) -> Path:
+    """Write a markdown report to disk and return the path."""
+    report_dir = Path(directory)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / file_name
+    report_path.write_text(content, encoding="utf-8")
+    return report_path
+
 
 @traced("report_agent")
 def report_agent(state: ApplicationState) -> dict[str, object]:
