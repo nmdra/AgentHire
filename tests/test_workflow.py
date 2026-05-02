@@ -12,6 +12,7 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
     candidate_file.write_text("Test Candidate", encoding="utf-8")
     monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
     monkeypatch.setenv("RESEND_FROM_EMAIL", "noreply@agenthire.com")
+    monkeypatch.setenv("REPORTS_DIR", str(tmp_path / "reports"))
     monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
 
     monkeypatch.setattr(

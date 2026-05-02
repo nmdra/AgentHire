@@ -8,6 +8,9 @@ from pathlib import Path
 from app.config import get_settings
 from app.observability import traced
 from app.state import ApplicationState
+from app.tools.ollama import OllamaError, generate_json_response
+import json
+from app.database import update_application
 
 
 def _summarize_candidate(state: ApplicationState) -> str:
@@ -28,8 +31,49 @@ def _summarize_candidate(state: ApplicationState) -> str:
 
 
 def _build_applicant_report(state: ApplicationState) -> str:
-    """Create the applicant-facing report body."""
+    """Create the applicant-facing report body using LLM personalization."""
     decision = state.get("decision", "REVIEW")
+    extracted = state.get("extracted_json") or {}
+    evaluation_reasoning = state.get("evaluation_reasoning", "")
+    settings = get_settings()
+    
+    # Try LLM personalization first
+    if evaluation_reasoning:
+        try:
+            decision_context = {
+                "PASS": "has been accepted and will move forward in our hiring process",
+                "REVIEW": "requires additional manual review before a final decision",
+                "FAIL": "did not meet our current requirements at this time",
+            }.get(decision, "has been reviewed")
+            
+            prompt = (
+                "You are a professional recruiter writing a personalized applicant report.\n"
+                "Generate a warm, professional, and concise report summary (2-3 paragraphs).\n"
+                "Do NOT include internal scores or technical evaluation details.\n"
+                "Focus on: (1) the decision, (2) what they did well, (3) next steps or encouragement.\n"
+                "Return JSON only with exactly this key:\n"
+                '{"applicant_summary": "string"}\n\n'
+                f"Candidate Name: {extracted.get('name', 'Valued Candidate')}\n"
+                f"Decision: {decision} - {decision_context}\n"
+                f"Evaluation Highlights: {evaluation_reasoning}\n"
+                f"Skills: {', '.join(extracted.get('skills', []))}"
+            )
+            
+            response = generate_json_response(
+                base_url=settings.ollama_base_url,
+                model=settings.extraction_model,
+                prompt=prompt,
+                temperature=0.3,
+                timeout_seconds=settings.ollama_timeout_seconds,
+            )
+            data = json.loads(response)
+            llm_summary = data.get("applicant_summary", "")
+            if llm_summary:
+                return f"# Applicant Report\n\nDecision: {decision}\n\n{llm_summary}\n\nThank you for submitting your application."
+        except (OllamaError, ValueError, json.JSONDecodeError):
+            pass  # Fall through to fallback
+    
+    # Fallback to static template
     decision_message = {
         "PASS": "Your application meets the current review threshold and will move forward.",
         "REVIEW": "Your application requires a manual review before a final hiring step.",
@@ -104,12 +148,29 @@ def _write_report(directory: str, file_name: str, content: str) -> Path:
 def report_agent(state: ApplicationState) -> dict[str, object]:
     """Generate applicant-facing and internal reports."""
     settings = get_settings()
-    application_id = state.get("application_id", "unknown")
+    application_id = state.get("application_id")
     applicant_report = _build_applicant_report(state)
     internal_report = _build_internal_report(state)
 
     _write_report(settings.reports_dir, f"{application_id}_applicant.md", applicant_report)
     _write_report(settings.reports_dir, f"{application_id}_internal.md", internal_report)
+
+    # Persist reports to the database when an application_id is present
+    if application_id:
+        try:
+            update_application(
+                settings.db_path,
+                application_id,
+                {
+                    "status": "reported",
+                    "report_applicant": applicant_report,
+                    "report_internal": internal_report,
+                    "errors": state.get("errors", []),
+                },
+            )
+        except Exception:
+            # Don't fail the agent if DB persistence fails; log via observability instead
+            pass
 
     return {
         "status": "reported",
