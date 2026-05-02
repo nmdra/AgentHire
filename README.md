@@ -175,6 +175,18 @@ Ensure Ollama is running, then use `uv` to execute the suite:
 ```bash
 uv run python evals/run_eval.py
 ```
-
 Results are saved to `evals/results.json` for detailed inspection.
+
+## Citation
+
+```BibTex
+@misc{nimendra_2026,
+	author       = { Nimendra },
+	title        = { NuExtract-tiny-Resume-Data-Extractor (Revision 1b0377a) },
+	year         = 2026,
+	url          = { https://huggingface.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor },
+	doi          = { 10.57967/hf/8630 },
+	publisher    = { Hugging Face }
+}
+```
 
