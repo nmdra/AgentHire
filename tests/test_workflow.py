@@ -32,6 +32,10 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
         ),
     )
     monkeypatch.setattr(
+        "app.agents.decision_agent.generate_decision_explanation",
+        lambda *_args, **_kwargs: "Deterministic test decision explanation.",
+    )
+    monkeypatch.setattr(
         "app.agents.extraction_agent.generate_json_response",
         lambda **_kwargs: json.dumps(
             {
