@@ -37,6 +37,17 @@ def _load_template(decision: str) -> str:
         raise FileNotFoundError(f"Missing notification template: {template_path}")
     return template_path.read_text(encoding="utf-8")
 
+def _build_subject(decision: str, candidate_name: str | None) -> str:
+    """Build a short, readable subject line."""
+    base = {
+        "PASS": "Your AgentHire application is moving forward",
+        "REVIEW": "Your AgentHire application is under review",
+        "FAIL": "Update on your AgentHire application",
+    }.get(decision, "Your AgentHire application update")
+    if candidate_name:
+        return f"{base} - {candidate_name}"
+    return base
+
 @traced("notification_agent")
 def notification_agent(state: ApplicationState) -> dict[str, object]:
     """Send the decision email and persist the notification outcome."""
