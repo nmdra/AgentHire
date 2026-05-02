@@ -87,7 +87,17 @@ def _summarize_reasoning(reasoning: object) -> str:
 
 @traced("decision_agent")
 def decision_agent(state: ApplicationState) -> dict[str, object]:
-    """Decide PASS/REVIEW/FAIL using Evaluation Agent outputs only."""
+    """Decide PASS/REVIEW/FAIL from evaluation score and resolved thresholds.
+
+    Threshold resolution priority:
+    1. ``state.pass_threshold`` / ``state.review_threshold`` — explicit values
+       forwarded by the Evaluation Agent.
+    2. ``state.rubric`` — a rubric dict stored in state, inspected for
+       ``pass_threshold`` / ``review_threshold`` or ``decision_thresholds`` keys.
+    3. Default rubric file on disk at ``settings.default_rubric_path`` — loaded
+       via :func:`load_rubric_tool` and parsed for threshold keys.
+    4. Hard-coded fallbacks: ``DEFAULT_PASS_THRESHOLD`` / ``DEFAULT_REVIEW_THRESHOLD``.
+    """
     score = _coerce_float(state.get("evaluation_score"))
     pass_t, review_t = _get_thresholds(state)
     reasoning_summary = _summarize_reasoning(state.get("evaluation_reasoning"))
