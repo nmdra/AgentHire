@@ -1,0 +1,26 @@
+{
+  "criteria": [
+    {
+      "name": "Technical Skills",
+      "weight": 0.4,
+      "description": "Assess the breadth and relevance of the applicant's technical skills for a software-focused role."
+    },
+    {
+      "name": "Experience",
+      "weight": 0.3,
+      "description": "Assess work experience quality, role relevance, and evidence of delivery or ownership."
+    },
+    {
+      "name": "Communication",
+      "weight": 0.2,
+      "description": "Assess how clearly the application communicates profile quality, achievements, and supporting details."
+    },
+    {
+      "name": "Education",
+      "weight": 0.1,
+      "description": "Assess the relevance and completeness of the candidate's education background."
+    }
+  ],
+  "pass_threshold": 75,
+  "review_threshold": 60
+}

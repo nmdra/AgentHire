@@ -51,7 +51,7 @@ def init_database(db_path: str) -> None:
                 file_name TEXT NOT NULL,
                 file_path TEXT NOT NULL,
                 status TEXT NOT NULL,
-                extracted_json TEXT,
+                extracted_json JSONB,
                 evaluation_score REAL,
                 evaluation_reasoning TEXT,
                 decision TEXT,
@@ -114,7 +114,10 @@ def update_application(db_path: str, application_id: str, values: dict[str, Any]
     if unknown_columns:
         raise ValueError(f"Unsupported update column(s): {sorted(unknown_columns)}")
 
-    columns = ", ".join(f"{column} = ?" for column in serialized)
+    columns = ", ".join(
+        f"{column} = jsonb(?)" if column == "extracted_json" else f"{column} = ?"
+        for column in serialized
+    )
     params = list(serialized.values()) + [application_id]
     with get_connection(db_path) as conn:
         conn.execute(f"UPDATE applications SET {columns} WHERE id = ?", params)
@@ -156,7 +159,7 @@ def get_application_status(db_path: str, application_id: str) -> dict[str, Any] 
     """Return an application row as a dictionary."""
     with get_connection(db_path) as conn:
         row = conn.execute(
-            "SELECT * FROM applications WHERE id = ?",
+            "SELECT *, json(extracted_json) as extracted_json_text FROM applications WHERE id = ?",
             (application_id,),
         ).fetchone()
 
@@ -164,8 +167,43 @@ def get_application_status(db_path: str, application_id: str) -> dict[str, Any] 
         return None
 
     data = dict(row)
-    if data.get("extracted_json"):
-        data["extracted_json"] = json.loads(data["extracted_json"])
+    json_text = data.pop("extracted_json_text", None)
+    if json_text is not None:
+        data["extracted_json"] = json.loads(json_text)
+    elif data.get("extracted_json"):
+        val = data["extracted_json"]
+        if isinstance(val, bytes):
+            val = val.decode("utf-8")
+        data["extracted_json"] = json.loads(val)
+
     if data.get("errors"):
         data["errors"] = json.loads(data["errors"])
     return data
+
+
+def get_application_logs(db_path: str, application_id: str) -> list[dict[str, Any]]:
+    """Return audit log rows for a specific application.
+
+    Args:
+        db_path: Path to the SQLite database file.
+        application_id: Application identifier whose logs should be returned.
+
+    Returns:
+        Ordered audit log entries as plain dictionaries.
+
+    Example:
+        get_application_logs("agenthire.db", "app-123")
+    """
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, application_id, agent_name, tool_name, input_summary,
+                   output_summary, latency_ms, created_at
+            FROM audit_log
+            WHERE application_id = ?
+            ORDER BY id
+            """,
+            (application_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
