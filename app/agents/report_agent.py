@@ -26,6 +26,31 @@ def _summarize_candidate(state: ApplicationState) -> str:
     ]
     return "\n".join(parts)
 
+def _build_applicant_report(state: ApplicationState) -> str:
+    """Create the applicant-facing report body."""
+    decision = state.get("decision", "REVIEW")
+    decision_message = {
+        "PASS": "Your application meets the current review threshold and will move forward.",
+        "REVIEW": "Your application requires a manual review before a final hiring step.",
+        "FAIL": "Your application did not meet the current review threshold.",
+    }.get(decision, "Your application has been reviewed.")
+
+    return "\n".join(
+        [
+            "# Applicant Report",
+            "",
+            f"Decision: {decision}",
+            "",
+            decision_message,
+            "",
+            _summarize_candidate(state),
+            "",
+            "Thank you for submitting your application.",
+        ]
+    )
+
+
+
 @traced("report_agent")
 def report_agent(state: ApplicationState) -> dict[str, object]:
     """Generate applicant-facing and internal reports."""
