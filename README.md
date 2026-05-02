@@ -21,19 +21,8 @@ The workflow involves a series of specialized LLM agents. Here is the current pr
 
 - ✅ **Extraction Agent**: **Completed**. Extracts raw unstructured text from candidate resumes/documents into a strictly typed JSON format using a customized LLM model.
 - ✅ **Extraction Validation Agent**: **Completed**. Reviews the extracted JSON output to verify that critical fields (such as `name` and `email`) are present and valid. Uses a **Functional Orchestration Pattern** to deterministically send professional email alerts via **Resend** if validation fails.
-- 🚧 **Evaluation Agent**: **Pending** (Currently Mocked). Evaluates the valid extracted candidate data against a scoring rubric.
-### Decision Agent (`app/agents/decision_agent.py`)
-- ✅ **Status:** Completed.
-- Receives `evaluation_score`, `evaluation_reasoning`, `pass_threshold`, and `review_threshold` from the Evaluation Agent through shared LangGraph state.
-- Does not call an LLM or re-evaluate the candidate.
-- Uses the custom `decision_rules_tool` from `app/tools/decision_rules.py`.
-- Applies deterministic threshold rules:
-  - `score >= pass_threshold` → `PASS`
-  - `review_threshold <= score < pass_threshold` → `REVIEW`
-  - `score < review_threshold` → `FAIL`
-- Returns `decision`, `confidence`, and `decision_reason`.
-- Owns state fields: `decision`, `confidence`, `decision_reason`.
-- Tests: `tests/test_decision_agent.py`.
+- ✅ **Evaluation Agent**: **Completed**. Scores extracted candidate data against a weighted rubric loaded from disk or state. Uses `score_against_rubric_tool` for deterministic per-criterion scoring and an LLM (`EVALUATION_MODEL`) to generate a narrative summary of strengths and gaps, with a fully deterministic fallback if the model is unavailable. Forwards `pass_threshold` and `review_threshold` to the Decision Agent.
+- ✅ **Decision Agent**: **Completed**. Applies deterministic threshold logic to produce a final `PASS`, `FAIL`, or `REVIEW` decision from the evaluation score. Thresholds are resolved in priority order from state handoff (`pass_threshold` / `review_threshold`), a rubric dict in state, the default rubric file on disk (`DEFAULT_RUBRIC_PATH`), and hard-coded fallbacks (PASS ≥ 75, REVIEW ≥ 60). Also computes a deterministic confidence score and appends an evaluation reasoning summary to the decision record.
 - 🚧 **Report Agent**: **Pending** (Currently Mocked). Generates structured Markdown reports for both internal HR use and the applicant.
 - 🚧 **Notification Agent**: **Pending** (Currently Mocked). Simulates dispatching email updates to the applicant based on the system's decision.
 
@@ -110,6 +99,8 @@ Settings are loaded from environment variables and `.env` (if present).
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama base URL |
 | `EXTRACTION_MODEL` | `...NuExtract-tiny...` | Extraction model label |
 | `VALIDATION_MODEL` | `phi4-mini:3.8b...` | Validation model label |
+| `EVALUATION_MODEL` | `gemma3:1b-it-q4_K_M` | Evaluation model label |
+| `DEFAULT_RUBRIC_PATH` | `data/default_rubric.json` | Path to JSON rubric with decision thresholds |
 | `OLLAMA_TIMEOUT_SECONDS` | `120` | Timeout for model requests |
 | `OLLAMA_NUM_CTX` | `4096` | Context window size |
 | `DEBUG_LOGS` | `false` | Enable verbose LLM input/output logs |

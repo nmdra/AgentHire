@@ -53,8 +53,8 @@ The workflow follows a sequential path with a conditional quality gate:
 2. `route_after_extraction` (Halt if extraction fails)
 3. `extraction_validation_agent`
 4. `route_after_validation` (Halt if identity data is missing/placeholder)
-5. `evaluation_agent` (Mocked)
-6. `decision_agent` (Mocked)
+5. `evaluation_agent`
+6. `decision_agent`
 7. `report_agent` (Mocked)
 8. `notification_agent` (Mocked)
 
@@ -86,9 +86,13 @@ START → extract → [gate] → extraction_validate → [gate] → evaluate →
 - **Owns state fields:** `is_valid`, `reason`
 
 ### Evaluation Agent (`app/agents/evaluation_agent.py`)
-- 🚧 **Status:** Mocked.
-- Scores extracted applicant data against weighted rubric criteria.
-- Stores numeric score (0–100) and per-criterion reasoning.
+- ✅ **Status:** Completed.
+- Scores extracted candidate data against a weighted rubric (loaded from state or the default rubric file on disk).
+- **Deterministic Scoring:** Uses `score_against_rubric_tool` for per-criterion weighted scoring (0–100).
+- **LLM Narrative:** Calls the evaluation model (`EVALUATION_MODEL`) to generate an `overall_summary`, `strengths`, and `gaps`; falls back to a fully deterministic text summary if the model is unavailable.
+- **Threshold Handoff:** Reads `pass_threshold` and `review_threshold` from the rubric and forwards them to the Decision Agent via state.
+- **Model:** `gemma3:1b-it-q4_K_M` (configurable) · temp `0.1` · top_p `0.2`
+- **Owns state fields:** `evaluation_score`, `evaluation_reasoning`, `pass_threshold`, `review_threshold`
 
 ### Decision Agent (`app/agents/decision_agent.py`)
 - ✅ **Status:** Completed.
