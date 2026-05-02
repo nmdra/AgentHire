@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from app.graph.workflow import build_workflow
 
@@ -19,6 +20,20 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
     )
     monkeypatch.setattr(
         "app.agents.evaluation_agent.update_application", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr(
+        "app.agents.evaluation_agent.get_settings",
+        lambda: SimpleNamespace(
+            db_path="agenthire.db",
+            default_rubric_path="data/default_rubric.json",
+            ollama_base_url="http://localhost:11434",
+            evaluation_model="gemma3:1b-it-q4_K_M",
+            ollama_timeout_seconds=120,
+        ),
+    )
+    monkeypatch.setattr(
+        "app.agents.decision_agent.generate_decision_explanation",
+        lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
         "app.agents.extraction_agent.generate_json_response",
@@ -77,7 +92,7 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
     result = workflow.invoke(state)
 
     assert result["status"] == "completed"
-    assert result["decision"] == "REVIEW"
+    assert result["decision"] == "FAIL"
     assert result["notification_status"] == "sent"
     assert result["is_valid"] is True
     assert result["evaluation_score"] > 0.0

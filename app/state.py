@@ -23,6 +23,8 @@ class ApplicationState(TypedDict, total=False):
     validation_reason: str
     evaluation_score: float
     evaluation_reasoning: str
+    pass_threshold: float
+    review_threshold: float
     decision: Decision
     confidence: float
     decision_reason: str

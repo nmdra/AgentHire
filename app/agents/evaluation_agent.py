@@ -198,6 +198,8 @@ def evaluation_agent(state: ApplicationState) -> dict[str, object]:
     )
     evaluation_score = float(evaluation_result["evaluation_score"])
     evaluation_reasoning = str(evaluation_result["evaluation_reasoning"])
+    pass_threshold = float(evaluation_result["pass_threshold"])
+    review_threshold = float(evaluation_result["review_threshold"])
 
     update_application(
         settings.db_path,
@@ -214,4 +216,6 @@ def evaluation_agent(state: ApplicationState) -> dict[str, object]:
         "status": "evaluated",
         "evaluation_score": evaluation_score,
         "evaluation_reasoning": evaluation_reasoning,
+        "pass_threshold": pass_threshold,
+        "review_threshold": review_threshold,
     }
