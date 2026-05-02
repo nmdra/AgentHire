@@ -7,13 +7,15 @@ from pathlib import Path
 
 from jinja2 import Template
 
-from app.config import get_settings
 from app.observability import traced
 from app.state import ApplicationState
+from app.config import get_settings
+from app.tools.ollama import OllamaError, generate_json_response
+import json
 from app.tools.send_email import send_email_tool
 
 
-EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+from app.utils.validation import is_valid_email
 TEMPLATE_FILENAMES = {
     "PASS": "email_pass.txt",
     "REVIEW": "email_review.txt",
@@ -25,9 +27,7 @@ def _templates_dir() -> Path:
     """Return the root templates directory."""
     return Path(__file__).resolve().parents[2] / "templates"
 
-def _is_valid_email(address: str) -> bool:
-    """Return True when the address looks like a valid email address."""
-    return bool(EMAIL_PATTERN.fullmatch(address.strip()))
+# Use shared Pydantic-based validator from app.utils.validation
 
 def _load_template(decision: str) -> str:
     """Load the body template for a decision branch."""
@@ -49,9 +49,50 @@ def _build_subject(decision: str, candidate_name: str | None) -> str:
     return base
 
 def _render_body(state: ApplicationState, decision: str) -> str:
-    """Render a decision-specific body from the Jinja2 template."""
+    """Render a decision-specific body using LLM personalization with template fallback."""
     extracted = state.get("extracted_json") or {}
     candidate_name = extracted.get("name") if isinstance(extracted, dict) else None
+    evaluation_reasoning = state.get("evaluation_reasoning", "")
+    evaluation_score = state.get("evaluation_score", 0)
+    
+    # Try LLM personalization first
+    if evaluation_reasoning:
+        try:
+            settings = get_settings()
+            decision_context = {
+                "PASS": "has been accepted and will move forward in our hiring process",
+                "REVIEW": "requires additional manual review before a final decision",
+                "FAIL": "did not meet our current requirements at this time",
+            }.get(decision, "has been reviewed")
+            
+            prompt = (
+                "You are a professional recruiter sending a personalized decision email to a job candidate.\n"
+                "Write a warm, encouraging, and professional email body (2-3 paragraphs).\n"
+                "Do NOT include internal scores or technical details.\n"
+                "Focus on: (1) the decision, (2) what impressed you, (3) next steps or encouragement.\n"
+                "Return JSON only with exactly this key:\n"
+                '{"email_body": "string"}\n\n'
+                f"Candidate: {candidate_name or 'Valued Candidate'}\n"
+                f"Decision: {decision} - {decision_context}\n"
+                f"Evaluation Notes: {evaluation_reasoning}\n"
+                f"Skills: {', '.join(extracted.get('skills', []))}"
+            )
+            
+            response = generate_json_response(
+                base_url=settings.ollama_base_url,
+                model=settings.extraction_model,
+                prompt=prompt,
+                temperature=0.4,
+                timeout_seconds=settings.ollama_timeout_seconds,
+            )
+            data = json.loads(response)
+            llm_body = data.get("email_body", "")
+            if llm_body:
+                return llm_body
+        except (OllamaError, ValueError, json.JSONDecodeError):
+            pass  # Fall through to template-based fallback
+    
+    # Fallback to Jinja2 template
     template_text = _load_template(decision)
     return Template(template_text).render(
         name=candidate_name or "there",
@@ -74,11 +115,11 @@ def notification_agent(state: ApplicationState) -> dict[str, object]:
         }
 
     recipient = recipient.strip()
-    if not _is_valid_email(recipient):
+    if not is_valid_email(recipient):
         return {
             "status": "completed",
             "notification_status": "failed",
-            "errors": [f"notification_agent: invalid recipient email address: {recipient}"],
+            "errors": [f"notification_agent: invalid recipient email address:"],
         }
 
     body = _render_body(state, decision)
