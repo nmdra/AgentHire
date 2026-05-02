@@ -49,6 +49,44 @@ def _build_applicant_report(state: ApplicationState) -> str:
         ]
     )
 
+def _build_internal_report(state: ApplicationState) -> str:
+    """Create the internal markdown report body."""
+    extracted = state.get("extracted_json") or {}
+    skills = extracted.get("skills") if isinstance(extracted, dict) else []
+    experience = extracted.get("experience") if isinstance(extracted, dict) else []
+    education = extracted.get("education") if isinstance(extracted, dict) else []
+    application_id = state.get("application_id", "unknown")
+    decision = state.get("decision", "REVIEW")
+    confidence = state.get("confidence")
+    score = state.get("evaluation_score")
+    reasoning = state.get("evaluation_reasoning", "")
+    decision_reason = state.get("decision_reason", "")
+    created_at = datetime.now(UTC).isoformat()
+
+    return "\n".join(
+        [
+            "# Internal Report",
+            "",
+            f"- Application ID: {application_id}",
+            f"- Created At: {created_at}",
+            f"- Decision: {decision}",
+            f"- Confidence: {confidence if confidence is not None else 'n/a'}",
+            f"- Evaluation Score: {score if score is not None else 'n/a'}",
+            f"- Decision Reason: {decision_reason or 'n/a'}",
+            "",
+            "## Candidate Snapshot",
+            f"- Name: {extracted.get('name') if isinstance(extracted, dict) else 'n/a'}",
+            f"- Email: {extracted.get('email') if isinstance(extracted, dict) else 'n/a'}",
+            f"- Phone: {extracted.get('phone') if isinstance(extracted, dict) else 'n/a'}",
+            f"- Website: {extracted.get('website') if isinstance(extracted, dict) else 'n/a'}",
+            f"- Skills: {', '.join(skills) if isinstance(skills, list) and skills else 'None'}",
+            f"- Experience Entries: {len(experience) if isinstance(experience, list) else 0}",
+            f"- Education Entries: {len(education) if isinstance(education, list) else 0}",
+            "",
+            "## Evaluation Reasoning",
+            reasoning or "n/a",
+        ]
+    )
 
 
 @traced("report_agent")
