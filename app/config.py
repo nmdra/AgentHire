@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from os import getenv
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -17,6 +21,8 @@ class Settings:
     ollama_base_url: str = getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     extraction_model: str = getenv("EXTRACTION_MODEL", "smollm:360m")
     ollama_timeout_seconds: float = float(getenv("OLLAMA_TIMEOUT_SECONDS", "30"))
+    resend_api_key: str = getenv("RESEND_API_KEY", "")
+    resend_from_email: str = getenv("RESEND_FROM_EMAIL", "noreply@example.com")
 
 
 def get_settings() -> Settings:

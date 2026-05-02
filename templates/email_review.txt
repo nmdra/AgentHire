@@ -1,0 +1,8 @@
+Hello {{ name }},
+
+Your AgentHire application (ID: {{ application_id }}) is under manual review.
+
+We will update you once the review is complete.
+
+Best regards,
+AgentHire Hiring Team
