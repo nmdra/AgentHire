@@ -102,6 +102,8 @@ def report_agent(state: ApplicationState) -> dict[str, object]:
     """Generate applicant-facing and internal reports."""
     settings = get_settings()
     application_id = state.get("application_id", "unknown")
+    applicant_report = _build_applicant_report(state)
+    internal_report = _build_internal_report(state)
 
     _write_report(settings.reports_dir, f"{application_id}_applicant.md", applicant_report)
     _write_report(settings.reports_dir, f"{application_id}_internal.md", internal_report)
@@ -110,4 +112,4 @@ def report_agent(state: ApplicationState) -> dict[str, object]:
         "status": "reported",
         "report_applicant": applicant_report,
         "report_internal": internal_report,
-    }
+}
