@@ -10,6 +10,9 @@ from app.graph.workflow import build_workflow
 def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
     candidate_file = tmp_path / "candidate.txt"
     candidate_file.write_text("Test Candidate", encoding="utf-8")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.setenv("RESEND_FROM_EMAIL", "noreply@agenthire.com")
+    monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
 
     monkeypatch.setattr(
         "app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None
@@ -58,6 +61,7 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
             }
         ),
     )
+    monkeypatch.setattr("resend.Emails.send", lambda payload: {"id": "mock-id-123"})
     monkeypatch.setattr(
         "app.agents.extraction_validation_agent.generate_json_response",
         lambda **_kwargs: json.dumps(

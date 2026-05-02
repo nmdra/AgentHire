@@ -1,0 +1,8 @@
+Hello {{ name }},
+
+Thank you for applying to AgentHire. After reviewing application ID {{ application_id }}, we will not be moving forward at this time.
+
+We appreciate your interest and wish you the best in your search.
+
+Best regards,
+AgentHire Hiring Team
