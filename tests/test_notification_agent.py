@@ -13,7 +13,7 @@ def _base_state(**overrides: Any) -> dict[str, Any]:
         "decision": "PASS",
         "extracted_json": {
             "name": "Jane Doe",
-            "email": "gayashanhansa1@gmail.com",
+            "email": "jane.doe@example.com",
         },
         "errors": [],
         "audit_log": [],
@@ -37,7 +37,7 @@ def test_notification_agent_sends_pass_email(monkeypatch: pytest.MonkeyPatch) ->
     result = notification_agent(_base_state())
 
     assert result["notification_status"] == "sent"
-    assert captured["to"] == ["gayashanhansa1@gmail.com"]
+    assert captured["to"] == ["jane.doe@example.com"]
     assert "passed the current review threshold" in captured["text"]
     assert "moving forward" in captured["subject"]
 
@@ -100,8 +100,8 @@ def test_notification_agent_masks_email_in_audit_log(monkeypatch: pytest.MonkeyP
     result = notification_agent(_base_state())
 
     audit_entry = result["audit_log"][0]
-    assert "gayashanhansa1@gmail.com" not in audit_entry["input_summary"]
-    assert "****@gmail.com" in audit_entry["input_summary"]
+    assert "jane.doe@example.com" not in audit_entry["input_summary"]
+    assert "****@example.com" in audit_entry["input_summary"]
 
 
 def test_notification_agent_handles_send_failure(monkeypatch: pytest.MonkeyPatch) -> None:

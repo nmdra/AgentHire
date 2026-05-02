@@ -35,7 +35,7 @@ def build_workflow() -> Any:
     graph.add_conditional_edges("extract", route_after_extraction)
     
     def route_after_validation(state: ApplicationState) -> str:
-        if state.get("status") == "FAILED":
+        if state.get("status") == "failed":
             return END
         return "evaluate"
         
