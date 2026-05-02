@@ -9,6 +9,15 @@ from app.agents.evaluation_agent import evaluation_agent
 from app.tools.decision_rules import decision_rules_tool
 
 
+@pytest.fixture(autouse=True)
+def disable_llm_explanation_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep Decision Agent unit tests deterministic unless a test overrides this."""
+    monkeypatch.setattr(
+        "app.agents.decision_agent.generate_decision_explanation",
+        lambda **_kwargs: None,
+    )
+
+
 def _base_state(**overrides: object) -> dict[str, object]:
     state: dict[str, object] = {
         "application_id": "app-decision-1",
@@ -88,6 +97,110 @@ def test_decision_agent_includes_evaluation_reasoning_in_reason() -> None:
     )
 
     assert reasoning in str(result["decision_reason"])
+
+
+def test_decision_agent_can_include_llm_generated_explanation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.agents.decision_agent.generate_decision_explanation",
+        lambda **_kwargs: {
+            "decision_reason": "The score supports a review outcome because it stays below pass level.",
+            "risk_note": "There is still some uncertainty around communication evidence.",
+        },
+    )
+
+    result = decision_agent(
+        _base_state(
+            evaluation_score=68.55,
+            evaluation_reasoning="Candidate is promising but still has some gaps.",
+            pass_threshold=70.0,
+            review_threshold=50.0,
+        )
+    )
+
+    assert result["decision"] == "REVIEW"
+    assert "Local Ollama explanation:" in str(result["decision_reason"])
+    assert "Risk note:" in str(result["decision_reason"])
+
+
+def test_decision_agent_rejects_llm_explanation_that_conflicts_with_decision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.agents.decision_agent.generate_decision_explanation",
+        lambda **_kwargs: {
+            "decision_reason": "This should be a PASS decision because the profile looks excellent.",
+            "risk_note": "",
+        },
+    )
+
+    result = decision_agent(
+        _base_state(
+            evaluation_score=42.0,
+            evaluation_reasoning="Several critical rubric gaps remain.",
+            pass_threshold=75.0,
+            review_threshold=60.0,
+        )
+    )
+
+    assert result["decision"] == "FAIL"
+    assert "Local Ollama explanation:" not in str(result["decision_reason"])
+    assert "Decision made using Evaluation Agent score 42.00." in str(
+        result["decision_reason"]
+    )
+
+
+def test_decision_agent_rejects_label_only_llm_explanation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.agents.decision_agent.generate_decision_explanation",
+        lambda **_kwargs: {
+            "decision_reason": "REVIEW",
+            "risk_note": "Assess further details before final hiring decision.",
+        },
+    )
+
+    result = decision_agent(
+        _base_state(
+            evaluation_score=68.55,
+            evaluation_reasoning="Candidate is promising but still has some gaps.",
+            pass_threshold=70.0,
+            review_threshold=50.0,
+        )
+    )
+
+    assert result["decision"] == "REVIEW"
+    assert "Local Ollama explanation:" not in str(result["decision_reason"])
+    assert "Risk note:" not in str(result["decision_reason"])
+    assert str(result["decision_reason"]).startswith(
+        "Decision made using Evaluation Agent score 68.55."
+    )
+
+
+def test_decision_agent_falls_back_when_llm_explanation_raises_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _raise_error(**_kwargs: object) -> dict[str, str]:
+        raise RuntimeError("Ollama unavailable")
+
+    monkeypatch.setattr(
+        "app.agents.decision_agent.generate_decision_explanation",
+        _raise_error,
+    )
+
+    result = decision_agent(
+        _base_state(
+            evaluation_score=82.5,
+            evaluation_reasoning="Strong rubric alignment across the strongest criteria.",
+            pass_threshold=75.0,
+            review_threshold=60.0,
+        )
+    )
+
+    assert result["decision"] == "PASS"
+    assert "Local Ollama explanation:" not in str(result["decision_reason"])
 
 
 def test_decision_agent_uses_rubric_thresholds_from_state() -> None:

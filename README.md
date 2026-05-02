@@ -22,7 +22,18 @@ The workflow involves a series of specialized LLM agents. Here is the current pr
 - ✅ **Extraction Agent**: **Completed**. Extracts raw unstructured text from candidate resumes/documents into a strictly typed JSON format using a customized LLM model.
 - ✅ **Extraction Validation Agent**: **Completed**. Reviews the extracted JSON output to verify that critical fields (such as `name` and `email`) are present and valid. Uses a **Functional Orchestration Pattern** to deterministically send professional email alerts via **Resend** if validation fails.
 - 🚧 **Evaluation Agent**: **Pending** (Currently Mocked). Evaluates the valid extracted candidate data against a scoring rubric.
-- 🚧 **Decision Agent**: **Pending** (Currently Mocked). Makes a final `PASS`, `FAIL`, or `REVIEW` decision based on the evaluation score and parameters.
+### Decision Agent (`app/agents/decision_agent.py`)
+- ✅ **Status:** Completed.
+- Receives `evaluation_score`, `evaluation_reasoning`, `pass_threshold`, and `review_threshold` from the Evaluation Agent through shared LangGraph state.
+- Does not call an LLM or re-evaluate the candidate.
+- Uses the custom `decision_rules_tool` from `app/tools/decision_rules.py`.
+- Applies deterministic threshold rules:
+  - `score >= pass_threshold` → `PASS`
+  - `review_threshold <= score < pass_threshold` → `REVIEW`
+  - `score < review_threshold` → `FAIL`
+- Returns `decision`, `confidence`, and `decision_reason`.
+- Owns state fields: `decision`, `confidence`, `decision_reason`.
+- Tests: `tests/test_decision_agent.py`.
 - 🚧 **Report Agent**: **Pending** (Currently Mocked). Generates structured Markdown reports for both internal HR use and the applicant.
 - 🚧 **Notification Agent**: **Pending** (Currently Mocked). Simulates dispatching email updates to the applicant based on the system's decision.
 

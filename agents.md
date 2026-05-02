@@ -91,8 +91,17 @@ START → extract → [gate] → extraction_validate → [gate] → evaluate →
 - Stores numeric score (0–100) and per-criterion reasoning.
 
 ### Decision Agent (`app/agents/decision_agent.py`)
-- 🚧 **Status:** Mocked.
-- Applies pass/review thresholds to produce `PASS`, `REVIEW`, or `FAIL`.
+- ✅ **Status:** Completed.
+- Receives `evaluation_score`, `evaluation_reasoning`, `pass_threshold`, and `review_threshold` from the Evaluation Agent through shared LangGraph state.
+- Does not call an LLM or re-evaluate the candidate.
+- Uses the custom `decision_rules_tool` from `app/tools/decision_rules.py`.
+- Applies deterministic threshold rules:
+  - `score >= pass_threshold` → `PASS`
+  - `review_threshold <= score < pass_threshold` → `REVIEW`
+  - `score < review_threshold` → `FAIL`
+- Returns `decision`, `confidence`, and `decision_reason`.
+- Owns state fields: `decision`, `confidence`, `decision_reason`.
+- Tests: `tests/test_decision_agent.py`.
 
 ### Report Agent (`app/agents/report_agent.py`)
 - 🚧 **Status:** Mocked.
