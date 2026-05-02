@@ -88,10 +88,11 @@ def test_validate_payload_rejects_whitespace_only_decision_reason() -> None:
         _validate_payload({"decision_reason": "   ", "risk_note": ""}, "PASS")
 
 
-def test_validate_payload_rejects_label_only_decision_reason() -> None:
-    for label in ("PASS", "REVIEW", "FAIL"):
-        with pytest.raises(ValueError, match="must not be only the decision label"):
-            _validate_payload({"decision_reason": label, "risk_note": ""}, label)  # type: ignore[arg-type]
+@pytest.mark.parametrize("label", ["PASS", "REVIEW", "FAIL"])
+def test_validate_payload_rejects_label_only_decision_reason(label: str) -> None:
+    with pytest.raises(ValueError, match="must not be only the decision label"):
+        _validate_payload({"decision_reason": label, "risk_note": ""},  # type: ignore[arg-type]
+                          label)  # type: ignore[arg-type]
 
 
 def test_validate_payload_rejects_too_short_decision_reason() -> None:
@@ -145,7 +146,7 @@ def test_validate_payload_rejects_conflicting_decision_in_risk_note() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _base_kwargs(**overrides: object) -> dict[str, object]:
+def _base_explanation_kwargs(**overrides: object) -> dict[str, object]:
     return {
         "evaluation_score": 82.0,
         "pass_threshold": 75.0,
@@ -171,7 +172,7 @@ def test_generate_decision_explanation_returns_dict_on_valid_response(
         "app.tools.decision_explanation.generate_json_response",
         lambda **_kw: json.dumps(valid_payload),
     )
-    result = generate_decision_explanation(**_base_kwargs())  # type: ignore[arg-type]
+    result = generate_decision_explanation(**_base_explanation_kwargs())  # type: ignore[arg-type]
     assert result is not None
     assert "scored above" in result["decision_reason"]
     assert result["risk_note"] == "Minor uncertainty around soft skills."
@@ -191,7 +192,7 @@ def test_generate_decision_explanation_accepts_embedded_json(
         "app.tools.decision_explanation.generate_json_response",
         lambda **_kw: f"Here is my answer:\n{json.dumps(valid_payload)}\nDone.",
     )
-    result = generate_decision_explanation(**_base_kwargs())  # type: ignore[arg-type]
+    result = generate_decision_explanation(**_base_explanation_kwargs())  # type: ignore[arg-type]
     assert result is not None
     assert "scored above" in result["decision_reason"]
 
@@ -211,7 +212,7 @@ def test_generate_decision_explanation_returns_none_on_ollama_error(
         "app.tools.decision_explanation.generate_json_response",
         _raise,
     )
-    result = generate_decision_explanation(**_base_kwargs())  # type: ignore[arg-type]
+    result = generate_decision_explanation(**_base_explanation_kwargs())  # type: ignore[arg-type]
     assert result is None
 
 
@@ -222,7 +223,7 @@ def test_generate_decision_explanation_returns_none_on_invalid_json(
         "app.tools.decision_explanation.generate_json_response",
         lambda **_kw: "not json at all",
     )
-    result = generate_decision_explanation(**_base_kwargs())  # type: ignore[arg-type]
+    result = generate_decision_explanation(**_base_explanation_kwargs())  # type: ignore[arg-type]
     assert result is None
 
 
@@ -233,7 +234,7 @@ def test_generate_decision_explanation_returns_none_when_label_only(
         "app.tools.decision_explanation.generate_json_response",
         lambda **_kw: json.dumps({"decision_reason": "PASS", "risk_note": ""}),
     )
-    result = generate_decision_explanation(**_base_kwargs())  # type: ignore[arg-type]
+    result = generate_decision_explanation(**_base_explanation_kwargs())  # type: ignore[arg-type]
     assert result is None
 
 
@@ -244,7 +245,7 @@ def test_generate_decision_explanation_returns_none_when_keys_are_wrong(
         "app.tools.decision_explanation.generate_json_response",
         lambda **_kw: json.dumps({"wrong_key": "value", "risk_note": "note"}),
     )
-    result = generate_decision_explanation(**_base_kwargs())  # type: ignore[arg-type]
+    result = generate_decision_explanation(**_base_explanation_kwargs())  # type: ignore[arg-type]
     assert result is None
 
 
@@ -263,5 +264,5 @@ def test_generate_decision_explanation_returns_none_on_conflicting_decision(
         ),
     )
     # decision is PASS but explanation references FAIL
-    result = generate_decision_explanation(**_base_kwargs())  # type: ignore[arg-type]
+    result = generate_decision_explanation(**_base_explanation_kwargs())  # type: ignore[arg-type]
     assert result is None
