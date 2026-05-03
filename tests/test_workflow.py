@@ -84,6 +84,10 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
             }
         ),
     )
+    monkeypatch.setattr(
+        "app.agents.report_agent.update_application",
+        lambda *_args, **_kwargs: None,
+    )
 
     workflow = build_workflow()
     state = {

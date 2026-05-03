@@ -6,11 +6,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import get_settings
+from app.logger import setup_logger
 from app.observability import traced
 from app.state import ApplicationState
 from app.tools.ollama import OllamaError, generate_json_response
 import json
 from app.database import update_application
+
+
+logger = setup_logger("report_agent")
 
 
 def _summarize_candidate(state: ApplicationState) -> str:
@@ -61,7 +65,7 @@ def _build_applicant_report(state: ApplicationState) -> str:
             
             response = generate_json_response(
                 base_url=settings.ollama_base_url,
-                model=settings.evaluation_model,
+                model=settings.report_model,
                 prompt=prompt,
                 temperature=0.3,
                 timeout_seconds=settings.ollama_timeout_seconds,
@@ -149,11 +153,13 @@ def report_agent(state: ApplicationState) -> dict[str, object]:
     """Generate applicant-facing and internal reports."""
     settings = get_settings()
     application_id = state.get("application_id")
+    report_file_prefix = application_id or "unknown"
     applicant_report = _build_applicant_report(state)
     internal_report = _build_internal_report(state)
+    errors = list(state.get("errors", []))
 
-    _write_report(settings.reports_dir, f"{application_id}_applicant.md", applicant_report)
-    _write_report(settings.reports_dir, f"{application_id}_internal.md", internal_report)
+    _write_report(settings.reports_dir, f"{report_file_prefix}_applicant.md", applicant_report)
+    _write_report(settings.reports_dir, f"{report_file_prefix}_internal.md", internal_report)
 
     # Persist reports to the database when an application_id is present
     if application_id:
@@ -168,12 +174,18 @@ def report_agent(state: ApplicationState) -> dict[str, object]:
                     "errors": state.get("errors", []),
                 },
             )
-        except Exception:
-            # Don't fail the agent if DB persistence fails; log via observability instead
-            pass
+        except Exception as exc:
+            error_message = f"report_agent: failed to persist reports to database: {exc}"
+            logger.exception(error_message)
+            errors.append(error_message)
 
-    return {
+    result = {
         "status": "reported",
         "report_applicant": applicant_report,
         "report_internal": internal_report,
     }
+
+    if errors:
+        result["errors"] = errors
+
+    return result

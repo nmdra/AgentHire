@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from jinja2 import Template
@@ -53,7 +52,7 @@ def _render_body(state: ApplicationState, decision: str) -> str:
     extracted = state.get("extracted_json") or {}
     candidate_name = extracted.get("name") if isinstance(extracted, dict) else None
     evaluation_reasoning = state.get("evaluation_reasoning", "")
-    evaluation_score = state.get("evaluation_score", 0)
+
     
     # Try LLM personalization first
     if evaluation_reasoning:
@@ -80,7 +79,7 @@ def _render_body(state: ApplicationState, decision: str) -> str:
             
             response = generate_json_response(
                 base_url=settings.ollama_base_url,
-                model=settings.evaluation_model,
+                model=settings.notification_model,
                 prompt=prompt,
                 temperature=0.4,
                 timeout_seconds=settings.ollama_timeout_seconds,
@@ -102,7 +101,7 @@ def _render_body(state: ApplicationState, decision: str) -> str:
 
 @traced("notification_agent")
 def notification_agent(state: ApplicationState) -> dict[str, object]:
-    """Send the decision email and persist the notification outcome."""
+    """Send the decision email and return  the notification outcome."""
     decision = state.get("decision", "REVIEW")
     extracted = state.get("extracted_json") or {}
     recipient = extracted.get("email") if isinstance(extracted, dict) else None
@@ -119,7 +118,7 @@ def notification_agent(state: ApplicationState) -> dict[str, object]:
         return {
             "status": "completed",
             "notification_status": "failed",
-            "errors": [f"notification_agent: invalid recipient email address:"],
+            "errors": [f"notification_agent: invalid recipient email address"],
         }
 
     body = _render_body(state, decision)
