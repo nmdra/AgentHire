@@ -85,6 +85,25 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
         ),
     )
     monkeypatch.setattr(
+        "app.agents.report_agent.generate_json_response",
+        lambda **_kwargs: json.dumps(
+            {
+                "report_title": "Application Evaluation Report",
+                "report_summary": "Candidate evaluated successfully.",
+                "recommendation": "Do not advance",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        "app.agents.notification_agent.generate_json_response",
+        lambda **_kwargs: json.dumps(
+            {
+                "subject": "Your application update",
+                "body": "Thank you for your application. We will not be moving forward.",
+            }
+        ),
+    )
+    monkeypatch.setattr(
         "app.agents.report_agent.update_application",
         lambda *_args, **_kwargs: None,
     )
