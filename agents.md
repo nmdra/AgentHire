@@ -55,8 +55,8 @@ The workflow follows a sequential path with a conditional quality gate:
 4. `route_after_validation` (Halt if identity data is missing/placeholder)
 5. `evaluation_agent`
 6. `decision_agent`
-7. `report_agent` (Mocked)
-8. `notification_agent` (Mocked)
+7. `report_agent`
+8. `notification_agent`
 
 Pipeline Visualization:
 ```
@@ -108,12 +108,26 @@ START → extract → [gate] → extraction_validate → [gate] → evaluate →
 - Tests: `tests/test_decision_agent.py`.
 
 ### Report Agent (`app/agents/report_agent.py`)
-- 🚧 **Status:** Mocked.
-- Generates structured Markdown reports for both internal use and the applicant.
+- ✅ **Status:** Completed.
+- Generates two Markdown reports at the end of the pipeline: an **applicant-facing report** and an **internal report**.
+- **LLM Personalization:** When `evaluation_reasoning` is present in state, calls the report model to produce a warm, 2–3 paragraph applicant summary. The prompt receives only candidate-safe inputs: name, up to five skills, job title, company name, and a decision context string.
+- **Privacy Gate:** `evaluation_score`, `pass_threshold`, `review_threshold`, and `evaluation_reasoning` are **never** included in the applicant report prompt. The internal report contains all of these fields and is never surfaced to the applicant.
+- **Internal Report:** Generated deterministically; includes application ID, timestamp, decision, confidence, score, decision reason, full evaluation reasoning, and a candidate snapshot (name, email, phone, website, skills, experience count, education count).
+- **Fallback:** If the LLM is unavailable or returns an invalid response, a static deterministic template is used for the applicant report.
+- **Persistence:** Both reports are written to disk under `REPORTS_DIR` and persisted to SQLite via `update_application`.
+- **Model:** `REPORT_MODEL` (default: `gemma3:1b-it-q4_K_M`) · temp `0.3`
+- **Owns state fields:** `report_applicant`, `report_internal`. Sets `status` to `"reported"`.
 
 ### Notification Agent (`app/agents/notification_agent.py`)
-- 🚧 **Status:** Mocked.
-- Dispatches decision updates via the Resend API.
+- ✅ **Status:** Completed.
+- Sends a decision email to the candidate. It is the final node before the workflow terminates.
+- **Email Rendering — Two-Tier Strategy:**
+  1. **LLM Personalization:** When `evaluation_reasoning` is set, calls the notification model with candidate name, job title, company name, recruiter details, top three skills, and the most recent experience entry. Returns `{"subject": "...", "body": "..."}`. A post-processing safety net strips bracket/parenthesis placeholders from both fields.
+  2. **Template Fallback:** Uses decision-specific Jinja2 templates (`email_pass.txt`, `email_review.txt`, `email_fail.txt`) from `templates/`. The plain-text body is wrapped in `base_email.html` for HTML delivery.
+- **Email Validation Guard:** Validates recipient email from `extracted_json` before any rendering. Missing, empty, or malformed addresses cause immediate `notification_status: "failed"` with no email sent.
+- **Delivery:** Passes rendered subject, plain-text body, and HTML body to `send_email_tool` (Resend). Any non-`"sent"` status is recorded as a failure in `errors`.
+- **Model:** `NOTIFICATION_MODEL` (configurable) · temp `0.1`
+- **Owns state fields:** `notification_status`. Sets `status` to `"completed"`.
 
 ---
 
