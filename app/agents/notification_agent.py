@@ -75,15 +75,22 @@ def _render_notification(state: ApplicationState, decision: str) -> tuple[str, s
             if experience and isinstance(experience, list):
                 # Grab the first (usually most recent) experience entry
                 exp = experience[0]
-                role = exp.get("role", "Professional Role")
-                org = exp.get("organization", "Previous Organization")
-                recent_exp = f"Recent Experience: {role} at {org}"
+                role = exp.get("role")
+                org = exp.get("organization")
+                if role and org:
+                    recent_exp = f"Most Recent Role: {role} at {org}"
+                elif role:
+                    recent_exp = f"Most Recent Role: {role}"
+                elif org:
+                    recent_exp = f"Recent Experience at: {org}"
 
             prompt = (
                 "You are a professional recruiter sending a personalized decision email to a job candidate.\n"
                 f"{tone_instructions}\n"
                 "Write a personalized subject line and email body (2-3 paragraphs).\n"
-                "CRITICAL: Use the provided names and titles. Do NOT use generic placeholders like [Job Title], [Your Name], or [Company Name].\n"
+                "CRITICAL: Use the provided names and titles exactly. Do NOT use generic placeholders like [Job Title], [Your Name], [Company Name], or [Previous Organization].\n"
+                "CRITICAL: Do NOT include any text in brackets or parentheses that acts as a placeholder or instruction for the reader (e.g., [mention a project]).\n"
+                "If information about a specific project or organization is missing, simply omit that detail rather than using a placeholder.\n"
                 "Do NOT include internal scores or technical evaluation details.\n"
                 "Focus on: (1) the decision, (2) the candidate's specific background, (3) next steps.\n"
                 "Return JSON only with exactly these keys:\n"
