@@ -194,7 +194,7 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
             logger.error(f"Failed to send error notification email: {e2}")
 
     # 4. Finalize State
-    status = "validated" if decision.is_valid else "FAILED"
+    status = "validated" if decision.is_valid else "failed"
     update_application(
         settings.db_path,
         application_id,
