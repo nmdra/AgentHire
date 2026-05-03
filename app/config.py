@@ -23,6 +23,8 @@ class Settings:
         "hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M",
     )
     evaluation_model: str = getenv("EVALUATION_MODEL", "gemma3:1b-it-q4_K_M")
+    report_model: str = getenv("REPORT_MODEL","gemma3:1b-it-q4_K_M")
+    notification_model: str = getenv("NOTIFICATION_MODEL","gemma3:1b-it-q4_K_M")
     decision_model: str = getenv(
         "DECISION_MODEL",
         getenv("EVALUATION_MODEL", "gemma3:1b-it-q4_K_M"),

@@ -100,6 +100,8 @@ Settings are loaded from environment variables and `.env` (if present).
 | `EXTRACTION_MODEL` | `...NuExtract-tiny...` | Extraction model label |
 | `VALIDATION_MODEL` | `phi4-mini:3.8b...` | Validation model label |
 | `EVALUATION_MODEL` | `gemma3:1b-it-q4_K_M` | Evaluation model label |
+| `REPORT_MODEL` | `gemma3:1b-it-q4_K_M` | Applicant/internal report generation model label |
+| `NOTIFICATION_MODEL` | `gemma3:1b-it-q4_K_M` | Notification email generation model label |
 | `DECISION_MODEL` | `gemma3:1b-it-q4_K_M` | Decision explanation model (defaults to `EVALUATION_MODEL`) |
 | `DEFAULT_RUBRIC_PATH` | `data/default_rubric.json` | Path to JSON rubric with decision thresholds |
 | `OLLAMA_TIMEOUT_SECONDS` | `120` | Timeout for model requests |
