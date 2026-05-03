@@ -1,8 +1,10 @@
 Hello {{ name }},
 
-Your AgentHire application (ID: {{ application_id }}) has passed the current review threshold and will move forward.
+Your application for the {{ job_title }} position at {{ company_name }} (ID: {{ application_id }}) has passed the current review threshold and will move forward.
 
-We will contact you with the next steps.
+We will contact you with the next steps soon.
 
 Best regards,
-AgentHire Hiring Team
+{{ recruiter_name }}
+{{ recruiter_title }}
+{{ company_name }}

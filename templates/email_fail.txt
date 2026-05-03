@@ -1,8 +1,10 @@
 Hello {{ name }},
 
-Thank you for applying to AgentHire. After reviewing application ID {{ application_id }}, we will not be moving forward at this time.
+Thank you for applying for the {{ job_title }} position at {{ company_name }}. After reviewing application ID {{ application_id }}, we will not be moving forward with your application at this time.
 
 We appreciate your interest and wish you the best in your search.
 
 Best regards,
-AgentHire Hiring Team
+{{ recruiter_name }}
+{{ recruiter_title }}
+{{ company_name }}

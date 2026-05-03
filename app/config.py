@@ -37,6 +37,12 @@ class Settings:
     )
     debug_logs: bool = getenv("DEBUG_LOGS", "false").lower() in ("true", "1", "yes")
 
+    # Company and Role Info
+    company_name: str = getenv("COMPANY_NAME", "AgentHire")
+    job_title: str = getenv("JOB_TITLE", "Software Engineer")
+    recruiter_name: str = getenv("RECRUITER_NAME", "AgentHire Team")
+    recruiter_title: str = getenv("RECRUITER_TITLE", "Hiring Team")
+
     # External Services
     resend_api_key: str | None = field(default_factory=lambda: getenv("RESEND_API_KEY"))
     resend_from_email: str = field(

@@ -49,21 +49,24 @@ def _build_applicant_report(state: ApplicationState) -> str:
     if evaluation_reasoning:
         try:
             decision_context = {
-                "PASS": "has been accepted and will move forward in our hiring process",
-                "REVIEW": "requires additional manual review before a final decision",
-                "FAIL": "did not meet our current requirements at this time",
+                "PASS": f"has been accepted and will move forward in our hiring process for the {settings.job_title} position",
+                "REVIEW": f"requires additional manual review for the {settings.job_title} position before a final decision",
+                "FAIL": f"did not meet our current requirements for the {settings.job_title} position at this time",
             }.get(decision, "has been reviewed")
 
             prompt = (
                 "You are a professional recruiter writing a personalized applicant report.\n"
                 "Generate a warm, professional, and concise report summary (2-3 paragraphs).\n"
+                "CRITICAL: Use the provided company and job names. Do NOT use generic placeholders like [Job Title] or [Company Name].\n"
                 "Do NOT include internal scores or technical evaluation details.\n"
                 "Focus on: (1) the decision, (2) next steps or encouragement.\n"
                 "Return JSON only with exactly this key:\n"
                 '{"applicant_summary": "string"}\n\n'
                 f"Candidate Name: {extracted.get('name', 'Valued Candidate') if isinstance(extracted, dict) else 'Valued Candidate'}\n"
+                f"Job Title: {settings.job_title}\n"
+                f"Company: {settings.company_name}\n"
                 f"Decision: {decision} - {decision_context}\n"
-                f"Skills: {', '.join(skills)}"
+                f"Skills: {', '.join(skills[:5])}"
             )
 
             response = generate_json_response(
@@ -76,7 +79,7 @@ def _build_applicant_report(state: ApplicationState) -> str:
             data = json.loads(response)
             llm_summary = data.get("applicant_summary", "")
             if llm_summary:
-                return f"# Applicant Report\n\nDecision: {decision}\n\n{llm_summary}\n\nThank you for submitting your application."
+                return f"# Applicant Report\n\nDecision: {decision}\n\n{llm_summary}\n\nThank you for submitting your application to {settings.company_name}."
         except (OllamaError, ValueError, json.JSONDecodeError):
             pass  # Fall through to fallback
     # Fallback to static template
@@ -96,7 +99,7 @@ def _build_applicant_report(state: ApplicationState) -> str:
             "",
             _summarize_candidate(state),
             "",
-            "Thank you for submitting your application.",
+            f"Thank you for submitting your application to {settings.company_name}.",
         ]
     )
 
