@@ -175,16 +175,16 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
             
     except Exception as exc:
         logger.error(f"Validation Agent Error: {exc}")
-        decision = ValidationDecision(is_valid=False, reason=f"System error: {exc}")
-        # Enforce safety email on system error
+        decision = ValidationDecision(is_valid=False, reason="System error during validation")
+        # Enforce safety email on system error; exception details are logged server-side only
         try:
             email_params = {
                 "to_address": settings.reviewer_email,
                 "subject": "System Error: Extraction Validation",
-                "body": f"An error occurred while validating application {application_id}: {exc}",
+                "body": f"Validation failed for application {application_id}. Check server logs for details.",
                 "attachment_path": state.get("file_path")
             }
-            
+
             bt = state.get("background_tasks")
             if bt:
                 bt.add_task(send_email_tool.invoke, email_params)
