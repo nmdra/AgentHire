@@ -61,7 +61,7 @@ def _build_applicant_report(state: ApplicationState) -> str:
             
             response = generate_json_response(
                 base_url=settings.ollama_base_url,
-                model=settings.extraction_model,
+                model=settings.evaluation_model,
                 prompt=prompt,
                 temperature=0.3,
                 timeout_seconds=settings.ollama_timeout_seconds,

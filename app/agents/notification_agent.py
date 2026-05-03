@@ -80,7 +80,7 @@ def _render_body(state: ApplicationState, decision: str) -> str:
             
             response = generate_json_response(
                 base_url=settings.ollama_base_url,
-                model=settings.extraction_model,
+                model=settings.evaluation_model,
                 prompt=prompt,
                 temperature=0.4,
                 timeout_seconds=settings.ollama_timeout_seconds,
