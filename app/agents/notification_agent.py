@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+from datetime import datetime
 from pathlib import Path
 
 from jinja2 import Template
@@ -26,12 +28,11 @@ def _templates_dir() -> Path:
     return Path(__file__).resolve().parents[2] / "templates"
 
 
-def _load_template(decision: str) -> str:
-    """Load the body template for a decision branch."""
-    template_name = TEMPLATE_FILENAMES.get(decision, TEMPLATE_FILENAMES["REVIEW"])
-    template_path = _templates_dir() / template_name
+def _load_template(filename: str) -> str:
+    """Load a specific template file."""
+    template_path = _templates_dir() / filename
     if not template_path.exists():
-        raise FileNotFoundError(f"Missing notification template: {template_path}")
+        raise FileNotFoundError(f"Missing template: {template_path}")
     return template_path.read_text(encoding="utf-8")
 
 
@@ -47,8 +48,22 @@ def _build_subject(decision: str, candidate_name: str | None) -> str:
     return base
 
 
-def _render_notification(state: ApplicationState, decision: str) -> tuple[str, str]:
-    """Render a decision-specific subject and body using LLM personalization with fallback."""
+def _wrap_in_html(body_text: str, settings: object) -> str:
+    """Wrap plain text body into the base HTML template."""
+    # Convert double newlines to paragraphs, single newlines to breaks
+    formatted_body = "".join(f"<p>{p.strip()}</p>" for p in body_text.split("\n\n") if p.strip())
+    formatted_body = formatted_body.replace("\n", "<br>")
+
+    base_html = _load_template("base_email.html")
+    return Template(base_html).render(
+        company_name=getattr(settings, "company_name", "AgentHire"),
+        body_html=formatted_body,
+        current_year=datetime.now().year,
+    )
+
+
+def _render_notification(state: ApplicationState, decision: str) -> tuple[str, str, str]:
+    """Render a decision-specific subject, plain body, and HTML body."""
     extracted = state.get("extracted_json") or {}
     candidate_name = extracted.get("name") if isinstance(extracted, dict) else None
     evaluation_reasoning = state.get("evaluation_reasoning", "")
@@ -58,11 +73,22 @@ def _render_notification(state: ApplicationState, decision: str) -> tuple[str, s
     experience: list[dict[str, str]] = (
         extracted.get("experience", []) if isinstance(extracted, dict) else []
     )  # type: ignore[assignment]
+    settings = get_settings()
+
+    final_subject = ""
+    final_body = ""
 
     # Try LLM personalization when we have evaluation context
     if evaluation_reasoning:
         try:
             settings = get_settings()
+
+            # Map raw decision to natural language for the LLM
+            friendly_status = {
+                "PASS": "successfully moving forward",
+                "FAIL": "not moving forward at this time",
+                "REVIEW": "currently under manual review",
+            }.get(decision, "under review")
 
             # Contextual tone and specific instructions based on decision
             tone_instructions = {
@@ -85,54 +111,72 @@ def _render_notification(state: ApplicationState, decision: str) -> tuple[str, s
                     recent_exp = f"Recent Experience at: {org}"
 
             prompt = (
-                "You are a professional recruiter sending a personalized decision email to a job candidate.\n"
+                "You are an elite executive recruiter. Write a highly personalized, professional email.\n"
                 f"{tone_instructions}\n"
-                "Write a personalized subject line and email body (2-3 paragraphs).\n"
-                "CRITICAL: Use the provided names and titles exactly. Do NOT use generic placeholders like [Job Title], [Your Name], [Company Name], or [Previous Organization].\n"
-                "CRITICAL: Do NOT include any text in brackets or parentheses that acts as a placeholder or instruction for the reader (e.g., [mention a project]).\n"
-                "If information about a specific project or organization is missing, simply omit that detail rather than using a placeholder.\n"
-                "Do NOT include internal scores or technical evaluation details.\n"
-                "Focus on: (1) the decision, (2) the candidate's specific background, (3) next steps.\n"
-                "Return JSON only with exactly these keys:\n"
-                '{"subject": "string", "body": "string"}\n\n'
+                "\n"
+                "STRICT PROHIBITIONS:\n"
+                "1. DO NOT use technical codes like 'PASS', 'FAIL', or 'REVIEW' in the email text.\n"
+                "2. DO NOT use brackets [] or parentheses () for ANY reason.\n"
+                "3. DO NOT use placeholder text like '[mention skill]' or '[link]'.\n"
+                "4. DO NOT invent links, websites, or contact info not provided in the context.\n"
+                "5. DO NOT use phrases like 'e.g.' or 'for example' followed by instructions.\n"
+                "\n"
+                "ONE-SHOT EXAMPLE:\n"
+                "Context: Candidate: Alice, Job: Dev, Skills: Python, Docker, Result: successfully moving forward\n"
+                "Output: {\"subject\": \"Exciting news regarding your Developer application\", \"body\": \"Dear Alice, We were very impressed with your background in Python and Docker. We would love to move forward...\"}\n"
+                "\n"
+                "CONTEXT:\n"
                 f"Candidate: {candidate_name or 'Valued Candidate'}\n"
                 f"Job Title: {settings.job_title}\n"
                 f"Company: {settings.company_name}\n"
                 f"Recruiter: {settings.recruiter_name} ({settings.recruiter_title})\n"
-                f"Decision: {decision}\n"
+                f"Current Status: {friendly_status}\n"
                 f"Top Skills: {', '.join(skills[:3]) if skills else 'Relevant industry experience'}\n"
-                f"{recent_exp}"
+                f"{recent_exp}\n"
+                "\n"
+                "Return JSON only with 'subject' and 'body' keys."
             )
 
             response = generate_json_response(
                 base_url=settings.ollama_base_url,
                 model=settings.notification_model,
                 prompt=prompt,
-                temperature=0.5,
+                temperature=0.1,
                 timeout_seconds=settings.ollama_timeout_seconds,
             )
             data = json.loads(response)
-            llm_subject = data.get("subject", "")
-            llm_body = data.get("body", "")
-            if llm_subject and llm_body:
-                return llm_subject, llm_body
-        except (OllamaError, ValueError, json.JSONDecodeError):
-            pass  # Fall through to fallback
+            final_subject = data.get("subject", "")
+            final_body = data.get("body", "")
 
-    # Fallback to deterministic subject and Jinja2 template
-    settings = get_settings()
-    subject = _build_subject(decision, candidate_name)
-    template_text = _load_template(decision)
-    body = Template(template_text).render(
-        name=candidate_name or "there",
-        application_id=state.get("application_id", "unknown"),
-        decision=decision,
-        job_title=settings.job_title,
-        company_name=settings.company_name,
-        recruiter_name=settings.recruiter_name,
-        recruiter_title=settings.recruiter_title,
-    )
-    return subject, body
+            # Post-processing safety net: Strip any brackets or parentheses placeholders
+            # and clean up double spaces they might leave behind.
+            if final_body:
+                final_body = re.sub(r'\[.*?\]', '', final_body)
+                final_body = re.sub(r'\(.*?\)', '', final_body)
+                final_body = re.sub(r'\s{2,}', ' ', final_body).strip()
+            if final_subject:
+                final_subject = re.sub(r'\[.*?\]', '', final_subject)
+                final_subject = re.sub(r'\(.*?\)', '', final_subject).strip()
+
+        except (OllamaError, ValueError, json.JSONDecodeError):
+            pass
+
+    if not final_subject or not final_body:
+        # Fallback to deterministic subject and Jinja2 template
+        final_subject = _build_subject(decision, candidate_name)
+        template_name = TEMPLATE_FILENAMES.get(decision, TEMPLATE_FILENAMES["REVIEW"])
+        template_text = _load_template(template_name)
+        final_body = Template(template_text).render(
+            name=candidate_name or "there",
+            application_id=state.get("application_id", "unknown"),
+            decision=decision,
+            job_title=settings.job_title,
+            company_name=settings.company_name,
+            recruiter_name=settings.recruiter_name,
+            recruiter_title=settings.recruiter_title,
+        )
+
+    return final_subject, final_body, _wrap_in_html(final_body, settings)
 
 
 @traced("notification_agent")
@@ -157,12 +201,13 @@ def notification_agent(state: ApplicationState) -> dict[str, object]:
             "errors": ["notification_agent: invalid recipient email address"],
         }
 
-    subject, body = _render_notification(state, decision)
+    subject, body, html_body = _render_notification(state, decision)
     send_result = send_email_tool.invoke(
         {
             "to_address": recipient,
             "subject": subject,
             "body": body,
+            "html_body": html_body,
         }
     )
 

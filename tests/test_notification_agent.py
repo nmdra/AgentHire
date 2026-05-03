@@ -38,7 +38,9 @@ def test_notification_agent_sends_pass_email(monkeypatch: pytest.MonkeyPatch) ->
 
     assert result["notification_status"] == "sent"
     assert captured["to"] == ["jane.doe@example.com"]
+    # Check that both plain text and HTML are present
     assert "passed the current review threshold" in captured["text"]
+    assert "<div class=\"container\">" in captured["html"]
     assert "moving forward" in captured["subject"]
 
 
@@ -68,6 +70,7 @@ def test_notification_agent_uses_decision_templates(
 
     assert result["notification_status"] == "sent"
     assert template_phrase in captured["text"]
+    assert "<div class=\"container\">" in captured["html"]
 
 
 def test_notification_agent_rejects_invalid_email(monkeypatch: pytest.MonkeyPatch) -> None:

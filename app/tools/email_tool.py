@@ -96,7 +96,8 @@ def send_email_tool(
             meta_html += "</ul>"
             html_body += meta_html
         params["html"] = html_body
-    else:
+
+    if body:
         # Plain-text email: append metadata as readable text
         if metadata:
             meta_lines = ["\n\nApplication Metadata:"]

@@ -13,6 +13,15 @@ audit logs, and generates internal/applicant reports.
 - Persist results in SQLite (`applications`, `audit_log`)
 - Expose status and audit logs through HTTP endpoints
 
+## Key Features
+
+- **Multi-Agent Orchestration**: A structured pipeline using specialized agents for extraction, validation, evaluation, and notification.
+- **Advanced PDF Processing**: High-fidelity text extraction with spatial layout detection and OCR fallback.
+- **Robust Personalization**: LLM-driven email and report generation that incorporates candidate-specific skills and experience without leaking internal scores.
+- **Deterministic Guardrails**: Combines LLM flexibility with deterministic logic for scoring, decisions, and data validation.
+- **Local-First & Private**: candidate data remains on-premises using local Ollama models.
+- **Official Email Branding**: Professional HTML email templates for all candidate-facing communications.
+
 ---
 
 ## Current Agent Implementation Status
@@ -24,7 +33,7 @@ The workflow involves a series of specialized LLM agents. Here is the current pr
 - ✅ **Evaluation Agent**: **Completed**. Scores extracted candidate data against a weighted rubric loaded from disk or state. Uses `score_against_rubric_tool` for deterministic per-criterion scoring and an LLM (`EVALUATION_MODEL`) to generate a narrative summary of strengths and gaps, with a fully deterministic fallback if the model is unavailable. Forwards `pass_threshold` and `review_threshold` to the Decision Agent.
 - ✅ **Decision Agent**: **Completed**. Applies deterministic threshold logic to produce a final `PASS`, `FAIL`, or `REVIEW` decision from the evaluation score. Thresholds are resolved in priority order from state handoff (`pass_threshold` / `review_threshold`), a rubric dict in state, the default rubric file on disk (`DEFAULT_RUBRIC_PATH`), and hard-coded fallbacks (PASS ≥ 75, REVIEW ≥ 60). Also computes a deterministic confidence score and appends an evaluation reasoning summary to the decision record.
 - ✅ **Report Agent**: **Completed**. Generates structured Markdown reports for both internal HR use and the applicant. Utilizes personalized LLM-generated summaries that focus on candidate-safe signals, ensuring internal scoring logic is not leaked.
-- ✅ **Notification Agent**: **Completed**. Dispatches personalized email updates to applicants via **Resend**. Uses an LLM to craft warm, professional content based on the system decision, falling back to Jinja2 templates if needed.
+- ✅ **Notification Agent**: **Completed**. Dispatches personalized email updates to applicants via **Resend**. Uses an LLM to craft warm, professional content based on the system decision, supporting both rich HTML and plain-text formats with robust placeholder prevention.
 
 ---
 
