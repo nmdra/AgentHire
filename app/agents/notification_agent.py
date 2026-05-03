@@ -11,7 +11,7 @@ from app.state import ApplicationState
 from app.config import get_settings
 from app.tools.ollama import OllamaError, generate_json_response
 import json
-from app.tools.send_email import send_email_tool
+from app.tools.email_tool import send_email_tool
 
 
 from app.utils.validation import is_valid_email
@@ -52,9 +52,12 @@ def _render_body(state: ApplicationState, decision: str) -> str:
     extracted = state.get("extracted_json") or {}
     candidate_name = extracted.get("name") if isinstance(extracted, dict) else None
     evaluation_reasoning = state.get("evaluation_reasoning", "")
+    # Only include candidate-safe signals: name, decision context, and publicly known skills.
+    # evaluation_reasoning is intentionally excluded from the prompt to prevent internal
+    # scoring details from leaking into candidate-facing emails.
+    skills: list[str] = extracted.get("skills", []) if isinstance(extracted, dict) else []  # type: ignore[assignment]
 
-    
-    # Try LLM personalization first
+    # Try LLM personalization when we have evaluation context (gate on reasoning being set)
     if evaluation_reasoning:
         try:
             settings = get_settings()
@@ -63,20 +66,19 @@ def _render_body(state: ApplicationState, decision: str) -> str:
                 "REVIEW": "requires additional manual review before a final decision",
                 "FAIL": "did not meet our current requirements at this time",
             }.get(decision, "has been reviewed")
-            
+
             prompt = (
                 "You are a professional recruiter sending a personalized decision email to a job candidate.\n"
                 "Write a warm, encouraging, and professional email body (2-3 paragraphs).\n"
-                "Do NOT include internal scores or technical details.\n"
-                "Focus on: (1) the decision, (2) what impressed you, (3) next steps or encouragement.\n"
+                "Do NOT include internal scores or technical evaluation details.\n"
+                "Focus on: (1) the decision, (2) next steps or encouragement.\n"
                 "Return JSON only with exactly this key:\n"
                 '{"email_body": "string"}\n\n'
                 f"Candidate: {candidate_name or 'Valued Candidate'}\n"
                 f"Decision: {decision} - {decision_context}\n"
-                f"Evaluation Notes: {evaluation_reasoning}\n"
-                f"Skills: {', '.join(extracted.get('skills', []))}"
+                f"Skills: {', '.join(skills)}"
             )
-            
+
             response = generate_json_response(
                 base_url=settings.ollama_base_url,
                 model=settings.notification_model,
@@ -90,7 +92,7 @@ def _render_body(state: ApplicationState, decision: str) -> str:
                 return llm_body
         except (OllamaError, ValueError, json.JSONDecodeError):
             pass  # Fall through to template-based fallback
-    
+
     # Fallback to Jinja2 template
     template_text = _load_template(decision)
     return Template(template_text).render(
@@ -118,7 +120,7 @@ def notification_agent(state: ApplicationState) -> dict[str, object]:
         return {
             "status": "completed",
             "notification_status": "failed",
-            "errors": [f"notification_agent: invalid recipient email address"],
+            "errors": ["notification_agent: invalid recipient email address"],
         }
 
     body = _render_body(state, decision)

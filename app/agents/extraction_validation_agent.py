@@ -157,9 +157,9 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
             }
             
             email_params = {
-                "to_email": settings.reviewer_email,
+                "to_address": settings.reviewer_email,
                 "subject": decision.email_subject or f"Validation Alert: {application_id}",
-                "body": decision.email_body or f"<p>Validation failed for application {application_id}.</p>",
+                "html_body": decision.email_body or f"<p>Validation failed for application {application_id}.</p>",
                 "attachment_path": state.get("file_path"),
                 "metadata": email_metadata
             }
@@ -179,7 +179,7 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
         # Enforce safety email on system error
         try:
             email_params = {
-                "to_email": settings.reviewer_email,
+                "to_address": settings.reviewer_email,
                 "subject": "System Error: Extraction Validation",
                 "body": f"An error occurred while validating application {application_id}: {exc}",
                 "attachment_path": state.get("file_path")

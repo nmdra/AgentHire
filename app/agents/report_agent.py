@@ -40,8 +40,12 @@ def _build_applicant_report(state: ApplicationState) -> str:
     extracted = state.get("extracted_json") or {}
     evaluation_reasoning = state.get("evaluation_reasoning", "")
     settings = get_settings()
-    
-    # Try LLM personalization first
+    # Only include candidate-safe signals: name, decision context, and publicly known skills.
+    # evaluation_reasoning is intentionally excluded from the prompt to prevent internal
+    # scoring details from appearing in the applicant-facing report.
+    skills: list[str] = extracted.get("skills", []) if isinstance(extracted, dict) else []  # type: ignore[assignment]
+
+    # Try LLM personalization when we have evaluation context (gate on reasoning being set)
     if evaluation_reasoning:
         try:
             decision_context = {
@@ -49,20 +53,19 @@ def _build_applicant_report(state: ApplicationState) -> str:
                 "REVIEW": "requires additional manual review before a final decision",
                 "FAIL": "did not meet our current requirements at this time",
             }.get(decision, "has been reviewed")
-            
+
             prompt = (
                 "You are a professional recruiter writing a personalized applicant report.\n"
                 "Generate a warm, professional, and concise report summary (2-3 paragraphs).\n"
                 "Do NOT include internal scores or technical evaluation details.\n"
-                "Focus on: (1) the decision, (2) what they did well, (3) next steps or encouragement.\n"
+                "Focus on: (1) the decision, (2) next steps or encouragement.\n"
                 "Return JSON only with exactly this key:\n"
                 '{"applicant_summary": "string"}\n\n'
-                f"Candidate Name: {extracted.get('name', 'Valued Candidate')}\n"
+                f"Candidate Name: {extracted.get('name', 'Valued Candidate') if isinstance(extracted, dict) else 'Valued Candidate'}\n"
                 f"Decision: {decision} - {decision_context}\n"
-                f"Evaluation Highlights: {evaluation_reasoning}\n"
-                f"Skills: {', '.join(extracted.get('skills', []))}"
+                f"Skills: {', '.join(skills)}"
             )
-            
+
             response = generate_json_response(
                 base_url=settings.ollama_base_url,
                 model=settings.report_model,
@@ -76,7 +79,6 @@ def _build_applicant_report(state: ApplicationState) -> str:
                 return f"# Applicant Report\n\nDecision: {decision}\n\n{llm_summary}\n\nThank you for submitting your application."
         except (OllamaError, ValueError, json.JSONDecodeError):
             pass  # Fall through to fallback
-    
     # Fallback to static template
     decision_message = {
         "PASS": "Your application meets the current review threshold and will move forward.",

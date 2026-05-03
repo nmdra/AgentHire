@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from os import getenv
 from dotenv import load_dotenv
 
@@ -38,9 +38,13 @@ class Settings:
     debug_logs: bool = getenv("DEBUG_LOGS", "false").lower() in ("true", "1", "yes")
 
     # External Services
-    resend_api_key: str | None = getenv("RESEND_API_KEY")
-    resend_from_email: str = getenv("RESEND_FROM_EMAIL", "delivered@resend.dev")
-    reviewer_email: str = getenv("REVIEWER_EMAIL", "admin@example.com")
+    resend_api_key: str | None = field(default_factory=lambda: getenv("RESEND_API_KEY"))
+    resend_from_email: str = field(
+        default_factory=lambda: getenv("RESEND_FROM_EMAIL", "delivered@resend.dev")
+    )
+    reviewer_email: str = field(
+        default_factory=lambda: getenv("REVIEWER_EMAIL", "admin@example.com")
+    )
 
 
 def get_settings() -> Settings:

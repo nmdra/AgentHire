@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from app.agents.report_agent import report_agent
@@ -18,9 +19,16 @@ def _settings_for_reports(report_dir: Path) -> Settings:
     )
 
 
+_FAKE_LLM_RESPONSE = json.dumps({"applicant_summary": "Mock LLM summary for testing."})
+
+
 def test_report_agent_writes_reports_and_returns_text(monkeypatch, tmp_path: Path) -> None:
     report_dir = tmp_path / "reports"
     monkeypatch.setattr("app.agents.report_agent.get_settings", lambda: _settings_for_reports(report_dir))
+    monkeypatch.setattr(
+        "app.agents.report_agent.generate_json_response",
+        lambda **_kwargs: _FAKE_LLM_RESPONSE,
+    )
 
     state = {
         "application_id": "app-123",
@@ -60,6 +68,10 @@ def test_report_agent_writes_reports_and_returns_text(monkeypatch, tmp_path: Pat
 def test_report_agent_keeps_applicant_report_free_of_internal_score(monkeypatch, tmp_path: Path) -> None:
     report_dir = tmp_path / "reports"
     monkeypatch.setattr("app.agents.report_agent.get_settings", lambda: _settings_for_reports(report_dir))
+    monkeypatch.setattr(
+        "app.agents.report_agent.generate_json_response",
+        lambda **_kwargs: _FAKE_LLM_RESPONSE,
+    )
 
     state = {
         "application_id": "app-456",
@@ -89,6 +101,10 @@ def test_report_agent_keeps_applicant_report_free_of_internal_score(monkeypatch,
 def test_report_agent_handles_minimal_state(monkeypatch, tmp_path: Path) -> None:
     report_dir = tmp_path / "reports"
     monkeypatch.setattr("app.agents.report_agent.get_settings", lambda: _settings_for_reports(report_dir))
+    monkeypatch.setattr(
+        "app.agents.report_agent.generate_json_response",
+        lambda **_kwargs: _FAKE_LLM_RESPONSE,
+    )
 
     result = report_agent({"application_id": "app-789", "errors": [], "audit_log": []})
 
