@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from os import getenv
 from dotenv import load_dotenv
 
@@ -23,6 +23,8 @@ class Settings:
         "hf.co/nimendraai/NuExtract-tiny-Resume-Data-Extractor:Q4_K_M",
     )
     evaluation_model: str = getenv("EVALUATION_MODEL", "gemma3:1b-it-q4_K_M")
+    report_model: str = getenv("REPORT_MODEL", "gemma3:1b-it-q4_K_M")
+    notification_model: str = getenv("NOTIFICATION_MODEL", "gemma3:1b-it-q4_K_M")
     decision_model: str = getenv(
         "DECISION_MODEL",
         getenv("EVALUATION_MODEL", "gemma3:1b-it-q4_K_M"),
@@ -35,10 +37,20 @@ class Settings:
     )
     debug_logs: bool = getenv("DEBUG_LOGS", "false").lower() in ("true", "1", "yes")
 
+    # Company and Role Info
+    company_name: str = getenv("COMPANY_NAME", "AgentHire")
+    job_title: str = getenv("JOB_TITLE", "Software Engineer")
+    recruiter_name: str = getenv("RECRUITER_NAME", "AgentHire Team")
+    recruiter_title: str = getenv("RECRUITER_TITLE", "Hiring Team")
+
     # External Services
-    resend_api_key: str | None = getenv("RESEND_API_KEY")
-    resend_from_email: str = getenv("RESEND_FROM_EMAIL", "delivered@resend.dev")
-    reviewer_email: str = getenv("REVIEWER_EMAIL", "admin@example.com")
+    resend_api_key: str | None = field(default_factory=lambda: getenv("RESEND_API_KEY"))
+    resend_from_email: str = field(
+        default_factory=lambda: getenv("RESEND_FROM_EMAIL", "delivered@resend.dev")
+    )
+    reviewer_email: str = field(
+        default_factory=lambda: getenv("REVIEWER_EMAIL", "admin@example.com")
+    )
 
 
 def get_settings() -> Settings:

@@ -13,6 +13,15 @@ audit logs, and generates internal/applicant reports.
 - Persist results in SQLite (`applications`, `audit_log`)
 - Expose status and audit logs through HTTP endpoints
 
+## Key Features
+
+- **Multi-Agent Orchestration**: A structured pipeline using specialized agents for extraction, validation, evaluation, and notification.
+- **Advanced PDF Processing**: High-fidelity text extraction with spatial layout detection and OCR fallback.
+- **Robust Personalization**: LLM-driven email and report generation that incorporates candidate-specific skills and experience without leaking internal scores.
+- **Deterministic Guardrails**: Combines LLM flexibility with deterministic logic for scoring, decisions, and data validation.
+- **Local-First & Private**: candidate data remains on-premises using local Ollama models.
+- **Official Email Branding**: Professional HTML email templates for all candidate-facing communications.
+
 ---
 
 ## Current Agent Implementation Status
@@ -23,8 +32,8 @@ The workflow involves a series of specialized LLM agents. Here is the current pr
 - ✅ **Extraction Validation Agent**: **Completed**. Reviews the extracted JSON output to verify that critical fields (such as `name` and `email`) are present and valid. Uses a **Functional Orchestration Pattern** to deterministically send professional email alerts via **Resend** if validation fails.
 - ✅ **Evaluation Agent**: **Completed**. Scores extracted candidate data against a weighted rubric loaded from disk or state. Uses `score_against_rubric_tool` for deterministic per-criterion scoring and an LLM (`EVALUATION_MODEL`) to generate a narrative summary of strengths and gaps, with a fully deterministic fallback if the model is unavailable. Forwards `pass_threshold` and `review_threshold` to the Decision Agent.
 - ✅ **Decision Agent**: **Completed**. Applies deterministic threshold logic to produce a final `PASS`, `FAIL`, or `REVIEW` decision from the evaluation score. Thresholds are resolved in priority order from state handoff (`pass_threshold` / `review_threshold`), a rubric dict in state, the default rubric file on disk (`DEFAULT_RUBRIC_PATH`), and hard-coded fallbacks (PASS ≥ 75, REVIEW ≥ 60). Also computes a deterministic confidence score and appends an evaluation reasoning summary to the decision record.
-- 🚧 **Report Agent**: **Pending** (Currently Mocked). Generates structured Markdown reports for both internal HR use and the applicant.
-- 🚧 **Notification Agent**: **Pending** (Currently Mocked). Simulates dispatching email updates to the applicant based on the system's decision.
+- ✅ **Report Agent**: **Completed**. Generates structured Markdown reports for both internal HR use and the applicant. Utilizes personalized LLM-generated summaries that focus on candidate-safe signals, ensuring internal scoring logic is not leaked.
+- ✅ **Notification Agent**: **Completed**. Dispatches personalized email updates to applicants via **Resend**. Uses an LLM to craft warm, professional content based on the system decision, supporting both rich HTML and plain-text formats with robust placeholder prevention.
 
 ---
 
@@ -100,8 +109,14 @@ Settings are loaded from environment variables and `.env` (if present).
 | `EXTRACTION_MODEL` | `...NuExtract-tiny...` | Extraction model label |
 | `VALIDATION_MODEL` | `phi4-mini:3.8b...` | Validation model label |
 | `EVALUATION_MODEL` | `gemma3:1b-it-q4_K_M` | Evaluation model label |
+| `REPORT_MODEL` | `gemma3:1b-it-q4_K_M` | Applicant/internal report generation model label |
+| `NOTIFICATION_MODEL` | `gemma3:1b-it-q4_K_M` | Notification email generation model label |
 | `DECISION_MODEL` | `gemma3:1b-it-q4_K_M` | Decision explanation model (defaults to `EVALUATION_MODEL`) |
 | `DEFAULT_RUBRIC_PATH` | `data/default_rubric.json` | Path to JSON rubric with decision thresholds |
+| `COMPANY_NAME` | `AgentHire` | Your company name used in reports and emails |
+| `JOB_TITLE` | `Software Engineer` | The job title used in reports and emails |
+| `RECRUITER_NAME` | `AgentHire Team` | Recruiter name used in email signatures |
+| `RECRUITER_TITLE` | `Hiring Team` | Recruiter title used in email signatures |
 | `OLLAMA_TIMEOUT_SECONDS` | `120` | Timeout for model requests |
 | `OLLAMA_NUM_CTX` | `4096` | Context window size |
 | `DEBUG_LOGS` | `false` | Enable verbose LLM input/output logs |

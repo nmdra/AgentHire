@@ -10,6 +10,10 @@ from app.graph.workflow import build_workflow
 def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
     candidate_file = tmp_path / "candidate.txt"
     candidate_file.write_text("Test Candidate", encoding="utf-8")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.setenv("RESEND_FROM_EMAIL", "noreply@agenthire.com")
+    monkeypatch.setenv("REPORTS_DIR", str(tmp_path / "reports"))
+    monkeypatch.setattr("app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None)
 
     monkeypatch.setattr(
         "app.agents.extraction_agent.update_application", lambda *_args, **_kwargs: None
@@ -58,6 +62,7 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
             }
         ),
     )
+    monkeypatch.setattr("resend.Emails.send", lambda payload: {"id": "mock-id-123"})
     monkeypatch.setattr(
         "app.agents.extraction_validation_agent.generate_json_response",
         lambda **_kwargs: json.dumps(
@@ -78,6 +83,29 @@ def test_workflow_runs_with_stubbed_agents(monkeypatch, tmp_path: Path) -> None:
                 "gaps": ["Communication evidence is moderate"],
             }
         ),
+    )
+    monkeypatch.setattr(
+        "app.agents.report_agent.generate_json_response",
+        lambda **_kwargs: json.dumps(
+            {
+                "report_title": "Application Evaluation Report",
+                "report_summary": "Candidate evaluated successfully.",
+                "recommendation": "Do not advance",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        "app.agents.notification_agent.generate_json_response",
+        lambda **_kwargs: json.dumps(
+            {
+                "subject": "Your application update",
+                "body": "Thank you for your application. We will not be moving forward.",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        "app.agents.report_agent.update_application",
+        lambda *_args, **_kwargs: None,
     )
 
     workflow = build_workflow()

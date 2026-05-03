@@ -157,9 +157,9 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
             }
             
             email_params = {
-                "to_email": settings.reviewer_email,
+                "to_address": settings.reviewer_email,
                 "subject": decision.email_subject or f"Validation Alert: {application_id}",
-                "body": decision.email_body or f"<p>Validation failed for application {application_id}.</p>",
+                "html_body": decision.email_body or f"<p>Validation failed for application {application_id}.</p>",
                 "attachment_path": state.get("file_path"),
                 "metadata": email_metadata
             }
@@ -175,16 +175,16 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
             
     except Exception as exc:
         logger.error(f"Validation Agent Error: {exc}")
-        decision = ValidationDecision(is_valid=False, reason=f"System error: {exc}")
-        # Enforce safety email on system error
+        decision = ValidationDecision(is_valid=False, reason="System error during validation")
+        # Enforce safety email on system error; exception details are logged server-side only
         try:
             email_params = {
-                "to_email": settings.reviewer_email,
+                "to_address": settings.reviewer_email,
                 "subject": "System Error: Extraction Validation",
-                "body": f"An error occurred while validating application {application_id}: {exc}",
+                "body": f"Validation failed for application {application_id}. Check server logs for details.",
                 "attachment_path": state.get("file_path")
             }
-            
+
             bt = state.get("background_tasks")
             if bt:
                 bt.add_task(send_email_tool.invoke, email_params)
@@ -194,7 +194,7 @@ def extraction_validation_agent(state: ApplicationState) -> dict[str, Any]:
             logger.error(f"Failed to send error notification email: {e2}")
 
     # 4. Finalize State
-    status = "validated" if decision.is_valid else "FAILED"
+    status = "validated" if decision.is_valid else "failed"
     update_application(
         settings.db_path,
         application_id,
